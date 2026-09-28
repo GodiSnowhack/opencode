@@ -757,6 +757,71 @@ describe("session.llm.stream", () => {
   const opencodeFixture = { providerID: "opencode-test", modelID: vivgridFixture.modelID }
 
   it.instance(
+    "sends stable memory identity and exact auxiliary kind only to the configured gateway",
+    () =>
+      Effect.gen(function* () {
+        const previous = {
+          enabled: process.env.OPENCODE_MEMORY_INTEGRATION,
+          url: process.env.OPENCODE_MEMORY_GATEWAY_URL,
+        }
+        process.env.OPENCODE_MEMORY_INTEGRATION = "true"
+        process.env.OPENCODE_MEMORY_GATEWAY_URL = state.server!.url.origin
+        try {
+          const fixture = loadFixture(vivgridFixture.providerID, vivgridFixture.modelID)
+          const resolved = yield* Provider.use.getModel(
+            ProviderV2.ID.make(vivgridFixture.providerID), ModelV2.ID.make(fixture.model.id),
+          )
+          const ctx = yield* InstanceRef
+          if (!ctx) throw new Error("InstanceRef not provided")
+          const sessionID = SessionID.make("session-memory-identity")
+          const agent = { name: "test", mode: "primary", options: {},
+            permission: [{ permission: "*", pattern: "*", action: "allow" }] } satisfies Agent.Info
+          const user = { id: MessageID.make("msg_memory-identity"), sessionID, role: "user",
+            time: { created: Date.now() }, agent: agent.name,
+            model: { providerID: ProviderV2.ID.make(vivgridFixture.providerID), modelID: resolved.id },
+          } satisfies SessionV1.User
+          const input = { user, sessionID, model: resolved, agent, system: [],
+            messages: [{ role: "user" as const, content: "Hello" }], tools: {} }
+          const first = waitRequest("/chat/completions", new Response(createChatStream("First"),
+            { headers: { "Content-Type": "text/event-stream" } }))
+          yield* drain(input)
+          const initial = yield* Effect.promise(() => first)
+          expect(initial.headers.get("X-Memory-Session-Id")).toBe(sessionID)
+          expect(initial.headers.get("X-Memory-Project-Id")).toBeTruthy()
+          expect(initial.headers.get("X-Memory-Project-Root")).toBe(ctx.worktree === "/" ? ctx.directory : ctx.worktree)
+          expect(initial.headers.get("X-Memory-Request-Kind")).toBe("user")
+          expect(initial.headers.get("Authorization")).toBe("Bearer test-key")
+
+          const second = waitRequest("/chat/completions", new Response(createChatStream("Title"),
+            { headers: { "Content-Type": "text/event-stream" } }))
+          yield* drain({ ...input, requestKind: "title" })
+          const title = yield* Effect.promise(() => second)
+          expect(title.headers.get("X-Memory-Session-Id")).toBe(initial.headers.get("X-Memory-Session-Id"))
+          expect(title.headers.get("X-Memory-Project-Id")).toBe(initial.headers.get("X-Memory-Project-Id"))
+          expect(title.headers.get("X-Memory-Request-Kind")).toBe("title")
+
+          process.env.OPENCODE_MEMORY_GATEWAY_URL = "http://127.0.0.1:11435"
+          const third = waitRequest("/chat/completions", new Response(createChatStream("Direct"),
+            { headers: { "Content-Type": "text/event-stream" } }))
+          yield* drain(input)
+          const direct = yield* Effect.promise(() => third)
+          expect(direct.headers.get("X-Memory-Session-Id")).toBeNull()
+          expect(direct.headers.get("X-Memory-Project-Id")).toBeNull()
+          expect(direct.headers.get("X-Memory-Project-Root")).toBeNull()
+          expect(direct.headers.get("X-Memory-Request-Kind")).toBeNull()
+        } finally {
+          if (previous.enabled === undefined) delete process.env.OPENCODE_MEMORY_INTEGRATION
+          else process.env.OPENCODE_MEMORY_INTEGRATION = previous.enabled
+          if (previous.url === undefined) delete process.env.OPENCODE_MEMORY_GATEWAY_URL
+          else process.env.OPENCODE_MEMORY_GATEWAY_URL = previous.url
+        }
+      }),
+    { config: () => ({ enabled_providers: [vivgridFixture.providerID], provider: {
+      [vivgridFixture.providerID]: { options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` } },
+    } }) },
+  )
+
+  it.instance(
     "sends the parent session header for opencode providers",
     () =>
       Effect.gen(function* () {

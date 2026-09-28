@@ -45,6 +45,7 @@ export type StreamInput = {
   tools: Record<string, Tool>
   retries?: number
   toolChoice?: "auto" | "required" | "none"
+  requestKind?: "user" | "title" | "compaction" | "summary" | "auxiliary"
 }
 
 export type StreamRequest = StreamInput & {

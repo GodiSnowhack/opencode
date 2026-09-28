@@ -228,6 +228,7 @@ const layer = Layer.effect(
           user: firstInfo,
           system: [],
           small: true,
+          requestKind: "title",
           tools: {},
           model: mdl,
           sessionID: input.session.id,

@@ -10,6 +10,7 @@ import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "../system"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
+import { MemoryGateway } from "@opencode-ai/core/memory/gateway"
 import { Effect, Record } from "effect"
 import { jsonSchema, tool as aiTool, type ModelMessage, type Tool } from "ai"
 import type { Plugin } from "@/plugin"
@@ -33,6 +34,7 @@ type PrepareInput = {
   readonly plugin: Plugin.Interface
   readonly flags: RuntimeFlags.Info
   readonly isWorkflow: boolean
+  readonly requestKind?: "user" | "title" | "compaction" | "summary" | "auxiliary"
 }
 
 export type Prepared = {
@@ -174,9 +176,11 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
     })
   }
 
-  const opencodeProjectID = input.model.providerID.startsWith("opencode")
-    ? (yield* InstanceState.context).project.id
-    : undefined
+  const memoryEndpoint =
+    typeof input.provider.options.baseURL === "string" ? input.provider.options.baseURL : input.model.api.url
+  const context = input.model.providerID.startsWith("opencode") || MemoryGateway.matches(memoryEndpoint)
+    ? yield* InstanceState.context : undefined
+  const opencodeProjectID = input.model.providerID.startsWith("opencode") ? context?.project.id : undefined
 
   return {
     system,
@@ -201,6 +205,16 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
       ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
       ...input.model.headers,
       ...headers,
+      ...(context
+        ? MemoryGateway.headers({
+            endpoint: memoryEndpoint,
+            sessionID: input.sessionID,
+            projectID: context.project.id,
+            projectRoot: context.worktree,
+            directory: context.directory,
+            requestKind: input.requestKind ?? "user",
+          })
+        : {}),
     },
   }
 })

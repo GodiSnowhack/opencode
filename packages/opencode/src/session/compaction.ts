@@ -425,6 +425,7 @@ const layer = Layer.effect(
       const result = yield* processor.process({
         user: userMessage,
         agent,
+        requestKind: "compaction",
         sessionID: input.sessionID,
         tools: {},
         system: [],

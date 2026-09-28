@@ -3463,4 +3463,60 @@ describe("SessionRunnerLLM", () => {
       )
     }),
   )
+  it.effect("keeps memory identity across tool continuation and sessions in the same project", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const previousEnabled = process.env.OPENCODE_MEMORY_INTEGRATION
+      const previousURL = process.env.OPENCODE_MEMORY_GATEWAY_URL
+      process.env.OPENCODE_MEMORY_INTEGRATION = "true"
+      process.env.OPENCODE_MEMORY_GATEWAY_URL = "http://127.0.0.1:11435/v1"
+      currentModel = Model.make({
+        id: "memory-model",
+        provider: "fake",
+        route: OpenAIChat.route.with({ endpoint: { baseURL: "http://127.0.0.1:11435/v1" } }),
+      })
+      try {
+        const session = yield* SessionV2.Service
+        yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Echo this" }), resume: false })
+        requests.length = 0
+        responses = [
+          [
+            LLMEvent.stepStart({ index: 0 }),
+            LLMEvent.toolCall({ id: "call-memory", name: "echo", input: { text: "hello" } }),
+            LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
+            LLMEvent.finish({ reason: "tool-calls" }),
+          ],
+          [LLMEvent.stepStart({ index: 0 }), LLMEvent.stepFinish({ index: 0, reason: "stop" }), LLMEvent.finish({ reason: "stop" })],
+        ]
+        yield* session.resume(sessionID)
+        expect(requests).toHaveLength(2)
+        const first = requests[0]?.http?.headers
+        const continuation = requests[1]?.http?.headers
+        expect(first?.["X-Memory-Session-Id"]).toBe(sessionID)
+        expect(first?.["X-Memory-Project-Id"]).toStartWith("local-")
+        expect(first?.["X-Memory-Project-Root"]).toBe("/project")
+        expect(first?.["X-Memory-Request-Kind"]).toBe("user")
+        for (const name of ["X-Memory-Session-Id", "X-Memory-Project-Id", "X-Memory-Project-Root", "X-Memory-Request-Kind"])
+          expect(continuation?.[name]).toBe(first?.[name])
+
+        yield* insertSession(otherSessionID)
+        yield* session.prompt({ sessionID: otherSessionID, prompt: Prompt.make({ text: "Another session" }), resume: false })
+        response = []
+        responses = undefined
+        requests.length = 0
+        yield* session.resume(otherSessionID)
+        expect(requests).toHaveLength(1)
+        const next = requests[0]?.http?.headers
+        expect(next?.["X-Memory-Session-Id"]).toBe(otherSessionID)
+        expect(next?.["X-Memory-Project-Id"]).toBe(first?.["X-Memory-Project-Id"])
+        expect(next?.["X-Memory-Project-Root"]).toBe(first?.["X-Memory-Project-Root"])
+      } finally {
+        if (previousEnabled === undefined) delete process.env.OPENCODE_MEMORY_INTEGRATION
+        else process.env.OPENCODE_MEMORY_INTEGRATION = previousEnabled
+        if (previousURL === undefined) delete process.env.OPENCODE_MEMORY_GATEWAY_URL
+        else process.env.OPENCODE_MEMORY_GATEWAY_URL = previousURL
+      }
+    }),
+  )
+
 })

@@ -15,6 +15,7 @@ import { Database } from "../../database/database"
 import { EventV2 } from "../../event"
 import { Location } from "../../location"
 import { ModelV2 } from "../../model"
+import { MemoryGateway } from "../../memory/gateway"
 import { PermissionV2 } from "../../permission"
 import { ProviderV2 } from "../../provider"
 import { QuestionV2 } from "../../question"
@@ -209,6 +210,14 @@ const layer = Layer.effect(
             "x-session-affinity": session.id,
             "X-Session-Id": session.id,
             ...(session.parentID ? { "x-parent-session-id": session.parentID } : {}),
+            ...MemoryGateway.headers({
+              endpoint: model.route.endpoint.baseURL,
+              sessionID: session.id,
+              projectID: session.projectID,
+              projectRoot: location.project.directory,
+              directory: session.location.directory,
+              requestKind: "user",
+            }),
           },
         },
         providerOptions: { openai: { promptCacheKey } },
