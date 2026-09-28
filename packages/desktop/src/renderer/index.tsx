@@ -19,7 +19,9 @@ import type { UpdaterState } from "@opencode-ai/app/updater"
 import * as Sentry from "@sentry/solid"
 import type { AsyncStorage } from "@solid-primitives/storage"
 import { createMemoryHistory, MemoryRouter, type BaseRouterProps } from "@solidjs/router"
-import { createEffect, createMemo, createResource, createSignal, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, onCleanup, onMount, Show } from "solid-js"
+import { createStore } from "solid-js/store"
+import type { MemoryStatusSnapshot } from "@opencode-ai/core/memory/status"
 import { render } from "solid-js/web"
 import pkg from "../../package.json"
 import { t } from "./i18n"
@@ -332,7 +334,29 @@ function LoadingSplash() {
 }
 
 function DesktopRoot(props: { windowState: DesktopWindowState }) {
-  const platform = createPlatform(props.windowState)
+  const [memory, setMemory] = createStore({
+    enabled: false,
+    snapshot: { connected: false, status: null, receivedAt: 0 } as MemoryStatusSnapshot,
+  })
+  const platform: Platform = {
+    ...createPlatform(props.windowState),
+    memoryStatus: { enabled: () => memory.enabled, snapshot: () => memory.snapshot },
+  }
+  let disposed = false
+  let unsubscribe: (() => void) | undefined
+  onMount(() => {
+    void window.api.memoryStatusEnabled().then(async (enabled) => {
+      if (!enabled || disposed) return
+      setMemory("enabled", true)
+      const stop = await window.api.memoryStatusSubscribe((snapshot) => setMemory("snapshot", snapshot))
+      if (disposed) stop()
+      else unsubscribe = stop
+    }).catch(() => undefined)
+  })
+  onCleanup(() => {
+    disposed = true
+    unsubscribe?.()
+  })
   const loadLocale = async () => {
     const current = await platform.storage?.("opencode.global.dat").getItem("language")
     const legacy = current ? undefined : await platform.storage?.().getItem("language.v1")

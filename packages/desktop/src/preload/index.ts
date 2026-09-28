@@ -11,6 +11,22 @@ const updaterHandler = (_: unknown, state: UpdaterState) => {
 }
 
 const api: ElectronAPI = {
+  memoryStatusEnabled: () => ipcRenderer.invoke("memory-status-enabled"),
+  memoryStatusSubscribe: async (cb) => {
+    const id = crypto.randomUUID()
+    const handler = (_: unknown, snapshot: Parameters<typeof cb>[0]) => cb(snapshot)
+    ipcRenderer.on("memory-status-update", handler)
+    try {
+      await ipcRenderer.invoke("memory-status-subscribe", id)
+    } catch (error) {
+      ipcRenderer.removeListener("memory-status-update", handler)
+      throw error
+    }
+    return () => {
+      ipcRenderer.removeListener("memory-status-update", handler)
+      void ipcRenderer.invoke("memory-status-unsubscribe", id)
+    }
+  },
   killSidecar: () => ipcRenderer.invoke("kill-sidecar"),
   installCli: () => ipcRenderer.invoke("install-cli"),
   awaitInitialization: () => ipcRenderer.invoke("await-initialization"),

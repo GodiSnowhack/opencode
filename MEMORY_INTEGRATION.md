@@ -42,3 +42,25 @@ The non-Git fallback hashes a normalized absolute directory, so sessions in that
 7. For the durable-memory acceptance check, send: “Для этого проекта принято решение: конфигурацию приложения будем хранить в SQLite.” Verify a resulting project-scoped `project_decision` with a non-null project ID and source references in the Memory System.
 
 These steps require a running Gateway, Desktop, and database. Unit and integration tests in this fork do not constitute that live acceptance test.
+
+## Phase 2: Desktop MemoryStatus
+
+When `OPENCODE_MEMORY_INTEGRATION=true` and `OPENCODE_MEMORY_GATEWAY_URL` names a valid HTTP loopback Gateway, Desktop shows a compact status beside the lower edge of the composer. With the integration disabled or an invalid/nonlocal URL, the indicator is absent and no status request or event stream is opened. This status is UI state only; it is never sent as a chat message.
+
+The Desktop main process reads the same environment configuration used by Phase 1. The shared Gateway helper validates the URL and derives its origin with the URL parser. Main requests `GET /memory/status`, then reads `event: memory.status` frames from `GET /memory/events`. Both requests reject redirects. The main process maintains one stream for subscribed windows and sends parsed status snapshots through preload IPC. Session and project switches do not create additional streams. On a broken connection, the indicator becomes Offline and the client retries after 1, 2, 5, 10, 20, then at most 30 seconds. Each reconnect fetches a fresh status before streaming. Unmount/reload and the last window unsubscribe abort the stream and clear pending retry timers. Normal OpenCode requests continue independently of the status connection.
+
+| Gateway `phase` or condition                                                    | Indicator             |
+| ------------------------------------------------------------------------------- | --------------------- |
+| `IDLE`                                                                          | Memory: Ready         |
+| `MEMORY_ANALYZING`, `MEMORY_DEDUPLICATING`, `MEMORY_WRITING`, `MEMORY_INDEXING` | Memory: Analyzing     |
+| `TAXONOMY_RUNNING`                                                              | Memory: Taxonomy      |
+| `CONSOLIDATION_RUNNING`                                                         | Memory: Consolidating |
+| Queue count above zero, without a more specific active phase                    | Memory: Queued        |
+| `degradedReasons` nonempty or `DEGRADED`                                        | Memory: Degraded      |
+| `error` non-null or `ERROR`                                                     | Memory: Error         |
+| Gateway unavailable                                                             | Memory: Offline       |
+| Other active phase                                                              | Memory: Working       |
+
+The indicator also shows the real queue count when nonzero. Active operations show locally advancing elapsed time from `startedAt` or `elapsedMs`; there is no per-second Gateway polling, percentage, or ETA. A keyboard-focusable tooltip shows the reported state, phase, queue, processed count, elapsed time, and connection state. It never displays the project path, credentials, or full backend error text. Other locales fall back to English; English and Russian labels are included in the app's existing localization system.
+
+For a live check, start the local Gateway and Desktop fork with the environment values above. Verify Ready while idle, an active label during worker activity, Ready after completion, Offline when the Gateway stops, and automatic recovery after it starts again. Start Desktop without `OPENCODE_MEMORY_INTEGRATION` and verify that the indicator and status traffic are absent. Phase 3 may add a Memory Panel; this phase adds no memory list, manager, editing, search, or injection.

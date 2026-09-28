@@ -40,6 +40,11 @@ export function matches(url: string | undefined, config: Config = current()): bo
   return gateway !== undefined && gateway === endpoint(url)
 }
 
+export function statusOrigin(config: Config = current()): string | undefined {
+  if (!config.enabled || !config.gatewayURL || !endpoint(config.gatewayURL)) return undefined
+  return new URL(config.gatewayURL).origin
+}
+
 export function headers(input: Identity & { endpoint?: string }, config: Config = current()): Record<string, string> {
   if (!matches(input.endpoint, config)) return {}
   const root = input.projectID === "global" ? input.directory : input.projectRoot

@@ -7,6 +7,7 @@ import { SessionFollowupDock } from "@/pages/session/composer/session-followup-d
 import { SessionRevertDock } from "@/pages/session/composer/session-revert-dock"
 import { SessionTodoDock } from "@/pages/session/composer/session-todo-dock"
 import type { SessionComposerRegionController } from "./session-composer-region-controller"
+import { MemoryStatus } from "./memory-status"
 
 export function SessionComposerRegion(props: {
   controller: SessionComposerRegionController
@@ -159,6 +160,7 @@ export function SessionComposerRegion(props: {
                   </Show>
                 </div>
               </Show>
+              <MemoryStatus />
             </div>
           </Show>
         </Show>

@@ -2,6 +2,7 @@ import type { DesktopMenuAction } from "@opencode-ai/app/desktop-menu"
 import type { WslServersPlatform } from "@opencode-ai/app/wsl/types"
 import type { UpdaterState } from "@opencode-ai/app/updater"
 import type { DesktopNativeBundle } from "@opencode-ai/app/i18n/desktop-native"
+import type { MemoryStatusSnapshot } from "@opencode-ai/core/memory/status"
 export type {
   WslDistroProbe,
   WslInstalledDistro,
@@ -43,6 +44,8 @@ export type FatalRendererError = {
 }
 
 export type ElectronAPI = {
+  memoryStatusEnabled: () => Promise<boolean>
+  memoryStatusSubscribe: (cb: (snapshot: MemoryStatusSnapshot) => void) => Promise<() => void>
   killSidecar: () => Promise<void>
   installCli: () => Promise<string>
   awaitInitialization: () => Promise<ServerReadyData>

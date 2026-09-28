@@ -24,6 +24,7 @@ import type { UpdaterController } from "./updater-controller"
 import { createUpdaterSubscriptions } from "./updater-subscriptions"
 import { createDesktopDraftStore } from "./draft-store"
 import { nativeT } from "./native-translations"
+import { createMemoryStatusClient } from "./memory-status"
 
 const pickerFilters = (ext?: string[]) => {
   if (!ext || ext.length === 0) return undefined
@@ -55,6 +56,29 @@ type Deps = {
 }
 
 export function registerIpcHandlers(deps: Deps) {
+  const memoryStatus = createMemoryStatusClient()
+  const memorySubscriptions = new Map<number, { id: string; cleanup: () => void }>()
+  app.once("will-quit", () => memoryStatus?.stop())
+  ipcMain.handle("memory-status-enabled", () => !!memoryStatus)
+  ipcMain.handle("memory-status-subscribe", (event, id: string) => {
+    memorySubscriptions.get(event.sender.id)?.cleanup()
+    if (!memoryStatus) return
+    const sender = event.sender
+    const unsubscribe = memoryStatus.subscribe((snapshot) => {
+      if (!sender.isDestroyed()) sender.send("memory-status-update", snapshot)
+    })
+    const cleanup = () => {
+      unsubscribe()
+      if (memorySubscriptions.get(sender.id)?.cleanup === cleanup) memorySubscriptions.delete(sender.id)
+      sender.removeListener("destroyed", cleanup)
+    }
+    memorySubscriptions.set(sender.id, { id, cleanup })
+    sender.once("destroyed", cleanup)
+  })
+  ipcMain.handle("memory-status-unsubscribe", (event, id: string) => {
+    const subscription = memorySubscriptions.get(event.sender.id)
+    if (subscription?.id === id) subscription.cleanup()
+  })
   const drafts = createDesktopDraftStore(join(app.getPath("userData"), "drafts.sqlite"))
   const updaterSubscriptions = createUpdaterSubscriptions()
   app.once("will-quit", updaterSubscriptions.clear)
