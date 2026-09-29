@@ -80,3 +80,17 @@ The current Gateway has `GET /memory/metrics`, but its global/project totals are
 All status and panel traffic is restricted by the existing Gateway URL validation to configured HTTP loopback origins. The panel makes no cloud request, sends no chat message, does not expose auth headers or prompts, and performs no memory mutation. With `OPENCODE_MEMORY_INTEGRATION` disabled or an invalid/nonlocal Gateway URL, the main-process client is not created, no memory IPC subscription or network request starts, MemoryStatus is hidden, and the panel cannot open.
 
 Phase 3 is observability and connection control only. It does not implement a memory list, taxonomy tree, search, editor, source/history viewer, create, delete, merge, move, retrieval, embeddings, or context injection; those remain outside this phase.
+
+## Phase 4B: Desktop Memory Manager
+
+With the local integration enabled, open Memory Panel from the composer status button and select **Open Memory Manager**. The manager occupies the session workspace; closing it returns to the same session. Memory Panel remains the compact status view.
+
+The renderer calls the typed Desktop preload API, which invokes a fixed set of main-process IPC actions. `MemoryManagementClient` makes the corresponding `/memory/manage` requests to the configured local Gateway. The origin comes from the same Phase 1 loopback-only URL validation as MemoryStatus. The renderer cannot supply an arbitrary URL, read SQLite directly, or call a cloud service through this path. Management CRUD does not call a model.
+
+The manager has Global, Current Project, and All Projects views. Current Project uses the same effective project identity helper as Phase 1 and Memory Panel; the UI does not hash a project again. All Projects uses the Gateway's safe project names, active memory counts, and last activity. Search and status/type/sort/taxonomy filters are sent to the Gateway. The list loads 50 records at a time using the returned cursor; it does not treat a page as a global total. The taxonomy tree shows backend active counts and filters the list by an existing node.
+
+Selecting a memory fetches its detail. Sources and history are fetched only after opening their respective tabs. Sources show redacted excerpts and shortened session IDs; history shows versions, supersede links, and audit operations. Create uses canonical types from `/memory/manage/metadata`. Edit creates a new version, archive is logical and requires confirmation, merge accepts two compatible active memories and a user-entered result with confirmation, and move chooses an existing taxonomy node. Mutations wait for backend success and then refresh the affected list, detail, projects, and taxonomy counts.
+
+When the status client reports Offline, the manager remains open, displays the connection state, and disables mutations. Refresh and Retry remain available. Closing the manager does not create or stop an additional SSE stream. The layout shows list and detail side by side on desktop and navigates between them on narrow screens. English and Russian copy uses the existing app i18n fallback mechanism.
+
+Phase 4B does not add taxonomy node create/rename, physical purge, embeddings, semantic retrieval, injection, or automatic memory context.

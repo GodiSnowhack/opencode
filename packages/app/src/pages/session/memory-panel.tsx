@@ -129,6 +129,9 @@ export function MemoryPanel(props: MemoryPanelIdentity) {
       </div>
 
       <footer class="shrink-0 flex items-center justify-end gap-2 px-3 py-2 border-t border-border-weak-base">
+        <ButtonV2 size="small" variant="neutral" onClick={() => memory().manager.open()}>
+          {language.t("memory.manager.open")}
+        </ButtonV2>
         <Show when={!view().connected}>
           <ButtonV2 size="small" variant="outline" disabled={actions.reconnect} onClick={() => void run("reconnect")}>
             {language.t("memory.panel.reconnect")}

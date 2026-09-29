@@ -84,6 +84,7 @@ import {
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { sessionPanelLayout } from "@/pages/session/session-panel-layout"
 import { MemoryPanel } from "@/pages/session/memory-panel"
+import { MemoryManager } from "@/pages/session/memory-manager"
 import { SessionReviewEmptyChangesV2 } from "@opencode-ai/session-ui/v2/session-review-empty-changes-v2"
 import { SessionReviewEmptyNoGitV2 } from "@opencode-ai/session-ui/v2/session-review-empty-no-git-v2"
 import { SessionReviewV2SidebarToggle } from "@opencode-ai/session-ui/v2/session-review-v2"
@@ -451,6 +452,9 @@ export default function Page() {
   const isDesktop = createMediaQuery("(min-width: 768px)")
   const memoryPanelOpen = createMemo(
     () => memoryStatusEnabled(platform.memoryStatus) && platform.memoryStatus!.panel.opened(),
+  )
+  const memoryManagerOpen = createMemo(
+    () => memoryStatusEnabled(platform.memoryStatus) && platform.memoryStatus!.manager.opened(),
   )
   const desktopMemoryPanelOpen = createMemo(() => isDesktop() && memoryPanelOpen())
   const size = createSizing()
@@ -2411,6 +2415,17 @@ export default function Page() {
 
       <Show when={!newSessionDesign()}>
         <TerminalPanel />
+      </Show>
+      <Show when={memoryManagerOpen()}>
+        <MemoryManager
+          sessionID={params.id}
+          project={
+            sync().project
+              ? { id: sync().project!.id, name: sync().project!.name, worktree: sync().project!.worktree }
+              : undefined
+          }
+          directory={info()?.directory ?? sdk().directory}
+        />
       </Show>
     </SessionRouteFrame>
   )

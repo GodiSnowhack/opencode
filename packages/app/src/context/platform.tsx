@@ -3,6 +3,7 @@ import type { AsyncStorage, SyncStorage } from "@solid-primitives/storage"
 import type { Accessor } from "solid-js"
 import type { MemoryStatusSnapshot } from "@opencode-ai/core/memory/status"
 import type { Identity } from "@opencode-ai/core/memory/gateway"
+import type { MemoryManagementAction, MemoryManagementResponse } from "@opencode-ai/core/memory/management-types"
 import type { DesktopMenuAction } from "../desktop-menu"
 import { ServerConnection } from "./server"
 import type { WslServersPlatform } from "../wsl/types"
@@ -37,6 +38,8 @@ type PlatformBase = {
     snapshot: Accessor<MemoryStatusSnapshot>
     now: Accessor<number>
     panel: { opened: Accessor<boolean>; open(): void; close(): void; toggle(): void }
+    manager: { opened: Accessor<boolean>; open(): void; close(): void }
+    manage(action: MemoryManagementAction): Promise<MemoryManagementResponse>
     refresh(): Promise<void>
     reconnect(): Promise<void>
     effectiveProjectID(input: Pick<Identity, "projectID" | "projectRoot" | "directory">): Promise<string | undefined>

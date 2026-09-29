@@ -11,6 +11,7 @@ const updaterHandler = (_: unknown, state: UpdaterState) => {
 }
 
 const api: ElectronAPI = {
+  memoryManage: (action) => ipcRenderer.invoke("memory-manage", action),
   memoryStatusEnabled: () => ipcRenderer.invoke("memory-status-enabled"),
   memoryEffectiveProjectID: (input) => ipcRenderer.invoke("memory-effective-project-id", input),
   memoryStatusRefresh: () => ipcRenderer.invoke("memory-status-refresh"),

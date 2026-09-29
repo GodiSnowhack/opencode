@@ -340,6 +340,7 @@ function DesktopRoot(props: { windowState: DesktopWindowState }) {
     snapshot: { connected: false, status: null, receivedAt: 0 } as MemoryStatusSnapshot,
     now: Date.now(),
     panelOpen: false,
+    managerOpen: false,
   })
   const platform: Platform = {
     ...createPlatform(props.windowState),
@@ -353,6 +354,15 @@ function DesktopRoot(props: { windowState: DesktopWindowState }) {
         close: () => setMemory("panelOpen", (value) => nextMemoryPanelOpen(value, "close")),
         toggle: () => setMemory("panelOpen", (value) => nextMemoryPanelOpen(value, "toggle")),
       },
+      manager: {
+        opened: () => memory.managerOpen,
+        open: () => {
+          setMemory("panelOpen", false)
+          setMemory("managerOpen", true)
+        },
+        close: () => setMemory("managerOpen", false),
+      },
+      manage: (action) => window.api.memoryManage(action),
       refresh: () => window.api.memoryStatusRefresh(),
       reconnect: () => window.api.memoryStatusReconnect(),
       effectiveProjectID: (input) => window.api.memoryEffectiveProjectID(input),
