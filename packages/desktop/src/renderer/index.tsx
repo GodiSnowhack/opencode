@@ -11,6 +11,7 @@ import {
   PlatformProvider,
   createDraftStore,
   ServerConnection,
+  nextMemoryPanelOpen,
   useCommand,
   useWslServers,
   useLanguage,
@@ -337,25 +338,56 @@ function DesktopRoot(props: { windowState: DesktopWindowState }) {
   const [memory, setMemory] = createStore({
     enabled: false,
     snapshot: { connected: false, status: null, receivedAt: 0 } as MemoryStatusSnapshot,
+    now: Date.now(),
+    panelOpen: false,
   })
   const platform: Platform = {
     ...createPlatform(props.windowState),
-    memoryStatus: { enabled: () => memory.enabled, snapshot: () => memory.snapshot },
+    memoryStatus: {
+      enabled: () => memory.enabled,
+      snapshot: () => memory.snapshot,
+      now: () => memory.now,
+      panel: {
+        opened: () => memory.panelOpen,
+        open: () => setMemory("panelOpen", (value) => nextMemoryPanelOpen(value, "open")),
+        close: () => setMemory("panelOpen", (value) => nextMemoryPanelOpen(value, "close")),
+        toggle: () => setMemory("panelOpen", (value) => nextMemoryPanelOpen(value, "toggle")),
+      },
+      refresh: () => window.api.memoryStatusRefresh(),
+      reconnect: () => window.api.memoryStatusReconnect(),
+      effectiveProjectID: (input) => window.api.memoryEffectiveProjectID(input),
+    },
   }
   let disposed = false
   let unsubscribe: (() => void) | undefined
   onMount(() => {
-    void window.api.memoryStatusEnabled().then(async (enabled) => {
-      if (!enabled || disposed) return
-      setMemory("enabled", true)
-      const stop = await window.api.memoryStatusSubscribe((snapshot) => setMemory("snapshot", snapshot))
-      if (disposed) stop()
-      else unsubscribe = stop
-    }).catch(() => undefined)
+    void window.api
+      .memoryStatusEnabled()
+      .then(async (enabled) => {
+        if (!enabled || disposed) return
+        setMemory("enabled", true)
+        const stop = await window.api.memoryStatusSubscribe((snapshot) => setMemory("snapshot", snapshot))
+        if (disposed) stop()
+        else unsubscribe = stop
+      })
+      .catch(() => undefined)
   })
   onCleanup(() => {
     disposed = true
     unsubscribe?.()
+  })
+  createEffect(() => {
+    const status = memory.snapshot.status
+    if (
+      !memory.enabled ||
+      !memory.snapshot.connected ||
+      !status ||
+      ["IDLE", "DEGRADED", "ERROR", "MEMORY_QUEUED"].includes(status.phase)
+    )
+      return
+    setMemory("now", Date.now())
+    const timer = setInterval(() => setMemory("now", Date.now()), 1_000)
+    onCleanup(() => clearInterval(timer))
   })
   const loadLocale = async () => {
     const current = await platform.storage?.("opencode.global.dat").getItem("language")

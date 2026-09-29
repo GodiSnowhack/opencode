@@ -22,7 +22,7 @@ export class MemoryStatusClient {
     listener(this.snapshot)
     if (!this.active) {
       this.active = true
-      void this.run(++this.generation)
+      this.restart()
     }
     return () => {
       this.listeners.delete(listener)
@@ -41,10 +41,37 @@ export class MemoryStatusClient {
     this.snapshot = { connected: false, status: null, receivedAt: 0 }
   }
 
+  async refreshStatus() {
+    if (!this.active) return
+    const controller = new AbortController()
+    try {
+      await this.fetchStatus(controller.signal)
+    } catch {
+      this.publish({ ...this.snapshot, connected: false })
+    } finally {
+      controller.abort()
+    }
+  }
+
+  reconnect() {
+    if (!this.active) return
+    this.restart()
+  }
+
   private publish(snapshot: MemoryStatusSnapshot) {
     if (!this.active) return
     this.snapshot = snapshot
     for (const listener of this.listeners) listener(snapshot)
+  }
+
+  private restart() {
+    this.generation++
+    this.controller?.abort()
+    if (this.retryTimer) clearTimeout(this.retryTimer)
+    this.retryTimer = undefined
+    this.retryDone?.()
+    this.retryDone = undefined
+    void this.run(this.generation)
   }
 
   private async run(generation: number) {
@@ -53,14 +80,14 @@ export class MemoryStatusClient {
       const controller = new AbortController()
       this.controller = controller
       try {
-        await this.refresh(controller.signal)
+        await this.fetchStatus(controller.signal)
         if (!this.active || this.generation !== generation) break
         failures = 0
         await this.events(controller.signal)
         if (this.active && this.generation === generation) throw new Error("Memory event stream ended")
       } catch {
         if (!this.active || this.generation !== generation) break
-        this.publish({ connected: false, status: null, receivedAt: Date.now() })
+        this.publish({ ...this.snapshot, connected: false })
       } finally {
         controller.abort()
         if (this.controller === controller) this.controller = undefined
@@ -82,7 +109,7 @@ export class MemoryStatusClient {
     }
   }
 
-  private async refresh(signal: AbortSignal) {
+  private async fetchStatus(signal: AbortSignal) {
     const response = await this.request(new URL("/memory/status", this.origin), {
       signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
       redirect: "error",

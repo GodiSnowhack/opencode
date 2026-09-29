@@ -1,4 +1,6 @@
+import { MEMORY_ENGLISH } from "./memory-fallback"
 export const dict = {
+  ...MEMORY_ENGLISH,
   "desktop.menu.app": "OpenCode",
   "desktop.menu.file": "Soubor",
   "desktop.menu.edit": "Upravit",

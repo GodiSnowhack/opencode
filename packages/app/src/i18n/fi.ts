@@ -1,4 +1,6 @@
+import { MEMORY_ENGLISH } from "./memory-fallback"
 export const dict = {
+  ...MEMORY_ENGLISH,
   "command.category.suggested": "Ehdotetut",
   "command.category.view": "Näytä",
   "command.category.project": "Projekti",

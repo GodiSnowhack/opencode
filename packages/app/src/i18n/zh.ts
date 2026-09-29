@@ -1,8 +1,10 @@
+import { MEMORY_ENGLISH } from "./memory-fallback"
 import { dict as en } from "./en"
 
 type Keys = keyof typeof en
 
 export const dict = {
+  ...MEMORY_ENGLISH,
   "desktop.menu.app": "OpenCode",
   "desktop.menu.file": "文件",
   "desktop.menu.edit": "编辑",

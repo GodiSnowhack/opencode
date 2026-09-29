@@ -83,6 +83,7 @@ import {
 } from "@/pages/session/session-panel-width"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { sessionPanelLayout } from "@/pages/session/session-panel-layout"
+import { MemoryPanel } from "@/pages/session/memory-panel"
 import { SessionReviewEmptyChangesV2 } from "@opencode-ai/session-ui/v2/session-review-empty-changes-v2"
 import { SessionReviewEmptyNoGitV2 } from "@opencode-ai/session-ui/v2/session-review-empty-no-git-v2"
 import { SessionReviewV2SidebarToggle } from "@opencode-ai/session-ui/v2/session-review-v2"
@@ -98,6 +99,7 @@ import { Identifier } from "@/utils/id"
 import { diffs as list } from "@/utils/diffs"
 import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
+import { memoryStatusEnabled } from "@/memory/status-view"
 import { formatServerError, isLocalSessionNotFoundError, isSessionNotFoundError } from "@/utils/server-errors"
 import { legacySessionHref, requireServerKey, sessionHref } from "@/utils/session-route"
 import { useUsageExceededDialogs } from "./session/usage-exceeded-dialogs"
@@ -107,6 +109,7 @@ import { createSessionLineage } from "./session/session-lineage"
 type FollowupItem = FollowupDraft & { id: string }
 type FollowupEdit = Pick<FollowupItem, "id" | "prompt" | "context">
 const emptyFollowups: FollowupItem[] = []
+const MEMORY_PANEL_WIDTH = 320
 
 type ChangeMode = "git" | "branch" | "turn"
 type VcsMode = "git" | "branch"
@@ -446,6 +449,10 @@ export default function Page() {
   )
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
+  const memoryPanelOpen = createMemo(
+    () => memoryStatusEnabled(platform.memoryStatus) && platform.memoryStatus!.panel.opened(),
+  )
+  const desktopMemoryPanelOpen = createMemo(() => isDesktop() && memoryPanelOpen())
   const size = createSizing()
   const desktopReviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
   const desktopV2ReviewOpen = createMemo(() => newSessionDesign() && desktopReviewOpen() && !!params.id)
@@ -465,7 +472,9 @@ export default function Page() {
   const desktopSessionResizeOpen = createMemo(() =>
     newSessionDesign() ? desktopV2ReviewOpen() || desktopTerminalOpen() : desktopReviewOpen(),
   )
-  const desktopSidePanelOpen = createMemo(() => desktopSessionResizeOpen() || desktopFileTreeOpen())
+  const desktopSidePanelOpen = createMemo(
+    () => desktopSessionResizeOpen() || desktopFileTreeOpen() || desktopMemoryPanelOpen(),
+  )
   let panelRow: HTMLDivElement | undefined
   const [panelRowWidth, setPanelRowWidth] = createSignal<number>()
   createResizeObserver(
@@ -480,7 +489,8 @@ export default function Page() {
   const sessionPanelAvailable = createMemo(() => {
     const width = panelRowWidth()
     if (width === undefined) return undefined
-    return width - (settings.general.newLayoutDesigns() ? 8 : 0)
+    const memory = desktopMemoryPanelOpen() ? MEMORY_PANEL_WIDTH + (settings.general.newLayoutDesigns() ? 8 : 0) : 0
+    return width - (settings.general.newLayoutDesigns() ? 8 : 0) - memory
   })
   const sessionPanelMax = createMemo(() => {
     const available = sessionPanelAvailable()
@@ -499,7 +509,11 @@ export default function Page() {
   const sessionPanelWidth = createMemo(() => {
     if (!desktopSidePanelOpen()) return "100%"
     if (desktopSessionResizeOpen()) return `${sessionPanelResizedWidth()}px`
-    return `calc(100% - ${layout.fileTree.width()}px)`
+    const files = desktopFileTreeOpen() ? layout.fileTree.width() : 0
+    const memory = desktopMemoryPanelOpen() ? MEMORY_PANEL_WIDTH : 0
+    const panels = Number(desktopFileTreeOpen()) + Number(desktopMemoryPanelOpen())
+    const gaps = settings.general.newLayoutDesigns() ? panels * 8 : 0
+    return `calc(100% - ${files + memory + gaps}px)`
   })
   const centered = createMemo(() => isDesktop() && (newSessionDesign() || !desktopReviewOpen()))
   const desktopV2PanelLayout = createMemo(() =>
@@ -2261,6 +2275,7 @@ export default function Page() {
         <div
           classList={{
             "@container relative shrink-0 flex flex-col min-h-0 h-full flex-1 md:flex-none transition-[width]": true,
+            "!hidden": memoryPanelOpen() && !isDesktop(),
             "duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
               !size.active() && !ui.reviewSnap && !desktopInlineTerminalOnlyOpen(),
           }}
@@ -2380,6 +2395,17 @@ export default function Page() {
               </Show>
             </div>
           </Show>
+        </Show>
+        <Show when={memoryPanelOpen()}>
+          <MemoryPanel
+            sessionID={params.id}
+            project={
+              sync().project
+                ? { id: sync().project!.id, name: sync().project!.name, worktree: sync().project!.worktree }
+                : undefined
+            }
+            directory={info()?.directory ?? sdk().directory}
+          />
         </Show>
       </div>
 

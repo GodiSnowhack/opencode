@@ -2,6 +2,7 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import type { AsyncStorage, SyncStorage } from "@solid-primitives/storage"
 import type { Accessor } from "solid-js"
 import type { MemoryStatusSnapshot } from "@opencode-ai/core/memory/status"
+import type { Identity } from "@opencode-ai/core/memory/gateway"
 import type { DesktopMenuAction } from "../desktop-menu"
 import { ServerConnection } from "./server"
 import type { WslServersPlatform } from "../wsl/types"
@@ -31,7 +32,15 @@ export type FatalRendererErrorLog = {
 
 type PlatformBase = {
   /** Desktop Memory Gateway status, shared across session composers in this window. */
-  memoryStatus?: { enabled: Accessor<boolean>; snapshot: Accessor<MemoryStatusSnapshot> }
+  memoryStatus?: {
+    enabled: Accessor<boolean>
+    snapshot: Accessor<MemoryStatusSnapshot>
+    now: Accessor<number>
+    panel: { opened: Accessor<boolean>; open(): void; close(): void; toggle(): void }
+    refresh(): Promise<void>
+    reconnect(): Promise<void>
+    effectiveProjectID(input: Pick<Identity, "projectID" | "projectRoot" | "directory">): Promise<string | undefined>
+  }
   /** App version */
   version?: string
 

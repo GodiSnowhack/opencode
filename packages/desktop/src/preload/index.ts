@@ -12,6 +12,9 @@ const updaterHandler = (_: unknown, state: UpdaterState) => {
 
 const api: ElectronAPI = {
   memoryStatusEnabled: () => ipcRenderer.invoke("memory-status-enabled"),
+  memoryEffectiveProjectID: (input) => ipcRenderer.invoke("memory-effective-project-id", input),
+  memoryStatusRefresh: () => ipcRenderer.invoke("memory-status-refresh"),
+  memoryStatusReconnect: () => ipcRenderer.invoke("memory-status-reconnect"),
   memoryStatusSubscribe: async (cb) => {
     const id = crypto.randomUUID()
     const handler = (_: unknown, snapshot: Parameters<typeof cb>[0]) => cb(snapshot)

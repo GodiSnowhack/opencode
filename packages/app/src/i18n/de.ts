@@ -1,8 +1,10 @@
+import { MEMORY_ENGLISH } from "./memory-fallback"
 import { dict as en } from "./en"
 
 type Keys = keyof typeof en
 
 export const dict = {
+  ...MEMORY_ENGLISH,
   "command.category.suggested": "Vorgeschlagen",
   "command.category.view": "Ansicht",
   "command.category.project": "Projekt",

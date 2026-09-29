@@ -1,21 +1,48 @@
-import { createEffect, createSignal, onCleanup, Show } from "solid-js"
+import { Show } from "solid-js"
 import { Icon } from "@opencode-ai/ui/icon"
+import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { memoryStatusEnabled, statusView } from "@/memory/status-view"
 
+export function MemoryStatusButton(props: {
+  label: string
+  accessibleLabel: string
+  expanded: boolean
+  queue: number
+  queueLabel: string
+  elapsed: string
+  onToggle(): void
+}) {
+  return (
+    <ButtonV2
+      size="small"
+      variant="ghost-muted"
+      data-component="memory-status"
+      aria-controls="memory-panel"
+      aria-expanded={props.expanded}
+      aria-label={props.accessibleLabel}
+      onClick={() => props.onToggle()}
+      class="max-w-full min-w-0 !h-auto !min-h-0 !px-1 !py-0 text-12-regular text-text-weak"
+    >
+      <Icon name="brain" size="small" class="shrink-0" />
+      <span class="truncate">{props.label}</span>
+      <Show when={props.queue > 0}>
+        <span>{props.queueLabel}</span>
+      </Show>
+      <Show when={props.elapsed}>
+        <span>· {props.elapsed}</span>
+      </Show>
+    </ButtonV2>
+  )
+}
+
 function VisibleMemoryStatus() {
   const platform = usePlatform()
   const language = useLanguage()
-  const [now, setNow] = createSignal(Date.now())
   const snapshot = () => platform.memoryStatus!.snapshot()
-  createEffect(() => {
-    if (!statusView(snapshot(), Date.now()).active) return
-    const timer = setInterval(() => setNow(Date.now()), 1_000)
-    onCleanup(() => clearInterval(timer))
-  })
-  const view = () => statusView(snapshot(), now())
+  const view = () => statusView(snapshot(), platform.memoryStatus!.now())
   const label = () => language.t(view().key)
 
   return (
@@ -50,21 +77,15 @@ function VisibleMemoryStatus() {
         </div>
       }
     >
-      <div
-        tabindex="0"
-        role="img"
-        aria-label={label()}
-        class="inline-flex max-w-full items-center gap-1 rounded px-1 text-12-regular text-text-weak focus-visible:outline focus-visible:outline-1 focus-visible:outline-border-strong-base"
-      >
-        <Icon name="brain" size="small" class="shrink-0" />
-        <span class="truncate">{label()}</span>
-        <Show when={view().queue > 0}>
-          <span>{language.t("memory.status.queueSuffix", { count: view().queue })}</span>
-        </Show>
-        <Show when={view().elapsed}>
-          <span>· {view().elapsed}</span>
-        </Show>
-      </div>
+      <MemoryStatusButton
+        label={label()}
+        accessibleLabel={language.t("memory.panel.open", { status: label() })}
+        expanded={platform.memoryStatus!.panel.opened()}
+        queue={view().queue}
+        queueLabel={language.t("memory.status.queueSuffix", { count: view().queue })}
+        elapsed={view().elapsed}
+        onToggle={() => platform.memoryStatus!.panel.toggle()}
+      />
     </TooltipV2>
   )
 }

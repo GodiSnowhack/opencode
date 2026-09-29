@@ -45,14 +45,20 @@ export function statusOrigin(config: Config = current()): string | undefined {
   return new URL(config.gatewayURL).origin
 }
 
+export function effectiveProjectID(
+  input: Pick<Identity, "projectID" | "projectRoot" | "directory">,
+): string | undefined {
+  const root = input.projectID === "global" ? input.directory : input.projectRoot
+  if (!input.projectID || !absolute(root)) return undefined
+  if (input.projectID !== "global") return input.projectID
+  return `local-${Hash.sha256(path.win32.isAbsolute(root) ? path.win32.normalize(root).toLowerCase() : path.posix.normalize(root))}`
+}
+
 export function headers(input: Identity & { endpoint?: string }, config: Config = current()): Record<string, string> {
   if (!matches(input.endpoint, config)) return {}
   const root = input.projectID === "global" ? input.directory : input.projectRoot
-  if (!input.sessionID || !input.projectID || !absolute(root)) return {}
-  const projectID =
-    input.projectID === "global"
-      ? `local-${Hash.sha256(path.win32.isAbsolute(root) ? path.win32.normalize(root).toLowerCase() : path.posix.normalize(root))}`
-      : input.projectID
+  const projectID = effectiveProjectID(input)
+  if (!input.sessionID || !projectID) return {}
   return {
     "X-Memory-Session-Id": input.sessionID,
     "X-Memory-Project-Id": projectID,

@@ -1,26 +1,8 @@
 import { DESKTOP_NATIVE_ENGLISH } from "./desktop-native"
+import { MEMORY_ENGLISH } from "./memory-fallback"
 
 export const dict = {
-  "memory.status.ready": "Memory: Ready",
-  "memory.status.analyzing": "Memory: Analyzing",
-  "memory.status.working": "Memory: Working",
-  "memory.status.taxonomy": "Memory: Taxonomy",
-  "memory.status.consolidating": "Memory: Consolidating",
-  "memory.status.queued": "Memory: Queued",
-  "memory.status.degraded": "Memory: Degraded",
-  "memory.status.error": "Memory: Error",
-  "memory.status.offline": "Memory: Offline",
-  "memory.status.queueSuffix": "· {{count}} queued",
-  "memory.status.connected": "Connected",
-  "memory.status.offlineValue": "Offline",
-  "memory.status.tooltip.gateway": "Gateway: {{state}}",
-  "memory.status.tooltip.state": "State: {{state}}",
-  "memory.status.tooltip.phase": "Phase: {{phase}}",
-  "memory.status.tooltip.queue": "Queue: {{count}}",
-  "memory.status.tooltip.processed": "Processed: {{count}}",
-  "memory.status.tooltip.elapsed": "Elapsed: {{elapsed}}",
-  "memory.status.tooltip.error": "Gateway reported an error",
-  "memory.status.tooltip.degraded": "Degraded reasons: {{count}}",
+  ...MEMORY_ENGLISH,
   ...DESKTOP_NATIVE_ENGLISH,
   "command.category.suggested": "Suggested",
   "command.category.view": "View",

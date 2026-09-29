@@ -13,13 +13,21 @@ const identity = {
 
 describe("Memory Gateway identity headers", () => {
   it("derives the status origin only from an enabled local Gateway URL", () => {
-    expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://localhost:11435/v1/" })).toBe("http://localhost:11435")
-    expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://127.0.0.1:11435/v1" })).toBe("http://127.0.0.1:11435")
-    expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://[::1]:11435/v1" })).toBe("http://[::1]:11435")
+    expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://localhost:11435/v1/" })).toBe(
+      "http://localhost:11435",
+    )
+    expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://127.0.0.1:11435/v1" })).toBe(
+      "http://127.0.0.1:11435",
+    )
+    expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://[::1]:11435/v1" })).toBe(
+      "http://[::1]:11435",
+    )
     expect(MemoryGateway.statusOrigin({ enabled: false, gatewayURL: "http://localhost:11435/v1" })).toBeUndefined()
     expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "https://api.openai.com/v1" })).toBeUndefined()
     expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://other-host:11435/v1" })).toBeUndefined()
-    expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://localhost:11435/v1?token=x" })).toBeUndefined()
+    expect(
+      MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://localhost:11435/v1?token=x" }),
+    ).toBeUndefined()
   })
   it("is disabled by default and requires an exact local endpoint", () => {
     expect(MemoryGateway.headers(identity, { enabled: false, gatewayURL: gateway.gatewayURL })).toEqual({})
@@ -56,6 +64,10 @@ describe("Memory Gateway identity headers", () => {
     expect(first["X-Memory-Project-Id"]).toBe(again["X-Memory-Project-Id"])
     expect(first["X-Memory-Project-Id"]).not.toBe(other["X-Memory-Project-Id"])
     expect(first["X-Memory-Project-Root"]).toBe("C:\\Projects\\one")
+    expect(MemoryGateway.effectiveProjectID({ ...identity, projectID: "global", directory: "C:\\Projects\\one" })).toBe(
+      first["X-Memory-Project-Id"],
+    )
+    expect(MemoryGateway.effectiveProjectID(identity)).toBe("project-one")
   })
 
   it("marks known auxiliary calls and keeps existing provider headers", () => {

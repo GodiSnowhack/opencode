@@ -25,6 +25,7 @@ import { createUpdaterSubscriptions } from "./updater-subscriptions"
 import { createDesktopDraftStore } from "./draft-store"
 import { nativeT } from "./native-translations"
 import { createMemoryStatusClient } from "./memory-status"
+import { MemoryGateway } from "@opencode-ai/core/memory/gateway"
 
 const pickerFilters = (ext?: string[]) => {
   if (!ext || ext.length === 0) return undefined
@@ -60,6 +61,21 @@ export function registerIpcHandlers(deps: Deps) {
   const memorySubscriptions = new Map<number, { id: string; cleanup: () => void }>()
   app.once("will-quit", () => memoryStatus?.stop())
   ipcMain.handle("memory-status-enabled", () => !!memoryStatus)
+  ipcMain.handle(
+    "memory-effective-project-id",
+    (_event, input: Pick<MemoryGateway.Identity, "projectID" | "projectRoot" | "directory">) => {
+      if (
+        !memoryStatus ||
+        typeof input?.projectID !== "string" ||
+        typeof input.projectRoot !== "string" ||
+        typeof input.directory !== "string"
+      )
+        return undefined
+      return MemoryGateway.effectiveProjectID(input)
+    },
+  )
+  ipcMain.handle("memory-status-refresh", () => memoryStatus?.refreshStatus())
+  ipcMain.handle("memory-status-reconnect", () => memoryStatus?.reconnect())
   ipcMain.handle("memory-status-subscribe", (event, id: string) => {
     memorySubscriptions.get(event.sender.id)?.cleanup()
     if (!memoryStatus) return

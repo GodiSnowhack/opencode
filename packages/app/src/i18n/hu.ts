@@ -1,3 +1,4 @@
+import { MEMORY_ENGLISH } from "./memory-fallback"
 import { DESKTOP_NATIVE_KEYS } from "./desktop-native"
 
 const desktop = [
@@ -94,6 +95,7 @@ const desktop = [
 ]
 
 export const dict = {
+  ...MEMORY_ENGLISH,
   ...Object.fromEntries(DESKTOP_NATIVE_KEYS.map((key, index) => [key, desktop[index]])),
   "command.category.suggested": "Javasolt",
   "command.category.view": "Nézet",
