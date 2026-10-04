@@ -8,6 +8,14 @@ import { defaultMemoryDesktopSettings, parseMemoryDesktopSettings } from "@openc
 
 type SettingsStore = { get(key: string): unknown; set(key: string, value: unknown): void }
 
+export function memoryGatewayResources(packaged: boolean, appPath: string, resourcesPath: string) {
+  return packaged ? resourcesPath : join(appPath, "resources")
+}
+
+export function memoryDevRelaunchArgs(appPath: string, argv: string[]) {
+  return [appPath, ...argv.slice(2)]
+}
+
 export function memoryGatewayDirectory(resourcesPath: string) {
   return join(resourcesPath, "memory-gateway")
 }

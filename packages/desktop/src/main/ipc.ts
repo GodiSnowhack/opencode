@@ -42,6 +42,7 @@ type Deps = {
   memoryService: MemoryService
   killSidecar: () => Promise<void> | void
   relaunch: () => void
+  applyMemorySettings: () => Promise<void>
   awaitInitialization: () => Promise<ServerReadyData>
   consumeInitialDeepLinks: () => Promise<string[]> | string[]
   getDefaultServerUrl: () => Promise<string | null> | string | null
@@ -65,27 +66,45 @@ export function registerIpcHandlers(deps: Deps) {
   ipcMain.handle("memory-service", async (event, action: MemoryServiceAction) => {
     if (!action || typeof action.kind !== "string") throw new Error("invalid_action")
     switch (action.kind) {
-      case "get": return deps.memoryService.snapshot
+      case "get":
+        return deps.memoryService.snapshot
       case "update": {
         const before = deps.memoryService.snapshot.settings
         const result = await deps.memoryService.update(action.settings)
-        if (before.enabled !== result.settings.enabled || before.model !== result.settings.model || before.port !== result.settings.port)
-          setTimeout(() => deps.relaunch(), 200)
+        if (
+          before.enabled !== result.settings.enabled ||
+          before.model !== result.settings.model ||
+          before.port !== result.settings.port
+        )
+          setTimeout(
+            () =>
+              void deps.applyMemorySettings().catch((error) => console.error("Memory settings refresh failed", error)),
+            200,
+          )
         return result
       }
-      case "start": return deps.memoryService.start()
-      case "stop": await deps.memoryService.stop(); return deps.memoryService.snapshot
-      case "restart": return deps.memoryService.restart()
-      case "checkOllama": await deps.memoryService.detectOllama(); return deps.memoryService.snapshot
+      case "start":
+        return deps.memoryService.start()
+      case "stop":
+        await deps.memoryService.stop()
+        return deps.memoryService.snapshot
+      case "restart":
+        return deps.memoryService.restart()
+      case "checkOllama":
+        await deps.memoryService.detectOllama()
+        return deps.memoryService.snapshot
       case "diagnostics":
       case "backups":
       case "backup":
-      case "supportBundle": return deps.memoryService.maintenance(action.kind)
+      case "supportBundle":
+        return deps.memoryService.maintenance(action.kind)
       case "restoreDryRun":
-      case "restore": return deps.memoryService.maintenance(action.kind, action.backupId, action.confirm)
+      case "restore":
+        return deps.memoryService.maintenance(action.kind, action.backupId, action.confirm)
       case "importDatabase": {
         const window = BrowserWindow.fromWebContents(event.sender)
-        if (!window || window.isDestroyed() || event.senderFrame !== event.sender.mainFrame) throw new Error("invalid_sender")
+        if (!window || window.isDestroyed() || event.senderFrame !== event.sender.mainFrame)
+          throw new Error("invalid_sender")
         const picked = await dialog.showOpenDialog(window, {
           properties: ["openFile"],
           filters: [{ name: "SQLite database", extensions: ["db"] }],
@@ -93,7 +112,8 @@ export function registerIpcHandlers(deps: Deps) {
         if (picked.canceled || picked.filePaths.length !== 1) return deps.memoryService.snapshot
         return deps.memoryService.importDatabase(picked.filePaths[0]!)
       }
-      default: throw new Error("invalid_action")
+      default:
+        throw new Error("invalid_action")
     }
   })
   const serviceSubscriptions = new Map<number, () => void>()
@@ -104,7 +124,10 @@ export function registerIpcHandlers(deps: Deps) {
       if (!sender.isDestroyed()) sender.send("memory-service-update", snapshot)
     })
     serviceSubscriptions.set(sender.id, cleanup)
-    sender.once("destroyed", () => { cleanup(); serviceSubscriptions.delete(sender.id) })
+    sender.once("destroyed", () => {
+      cleanup()
+      serviceSubscriptions.delete(sender.id)
+    })
   })
   ipcMain.handle("memory-service-unsubscribe", (event) => {
     serviceSubscriptions.get(event.sender.id)?.()

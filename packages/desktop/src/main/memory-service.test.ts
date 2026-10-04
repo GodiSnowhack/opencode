@@ -4,7 +4,13 @@ import { createServer } from "node:net"
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { defaultMemoryDesktopSettings, parseMemoryDesktopSettings } from "@opencode-ai/core/memory/desktop"
-import { MemoryService, managedMemoryProvider, memoryGatewayDirectory } from "./memory-service"
+import {
+  MemoryService,
+  managedMemoryProvider,
+  memoryGatewayDirectory,
+  memoryGatewayResources,
+  memoryDevRelaunchArgs,
+} from "./memory-service"
 
 test("validates memory settings without accepting arbitrary paths or models", () => {
   expect(parseMemoryDesktopSettings(defaultMemoryDesktopSettings).port).toBe(11435)
@@ -34,6 +40,16 @@ test("managed provider preserves unrelated providers", () => {
   )
 })
 
+test("dev resources and relaunch preserve the absolute app path after cwd changes", () => {
+  const appPath = join("C:", "Workspace With Spaces", "opencode-custom", "packages", "desktop")
+  const resources = join("C:", "Program Files", "OpenCode", "resources")
+  expect(memoryGatewayResources(false, appPath, resources)).toBe(join(appPath, "resources"))
+  expect(memoryGatewayResources(true, appPath, resources)).toBe(resources)
+  expect(memoryDevRelaunchArgs(appPath, ["electron.exe", ".", "--remote-debugging-port=9222"])).toEqual([
+    appPath,
+    "--remote-debugging-port=9222",
+  ])
+})
 test("disabled memory does not launch a Gateway", async () => {
   const store = { get: () => defaultMemoryDesktopSettings, set: () => undefined }
   const service = new MemoryService({
@@ -44,6 +60,30 @@ test("disabled memory does not launch a Gateway", async () => {
   })
   expect((await service.start()).state).toBe("stopped")
   expect(memoryGatewayDirectory(join("C:", "Program Files", "OpenCode"))).toContain("memory-gateway")
+})
+
+test("missing development Gateway resource fails without terminating Desktop", async () => {
+  const listener = createServer()
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve))
+  const address = listener.address()
+  if (!address || typeof address === "string") throw new Error("No port")
+  await new Promise<void>((resolve) => listener.close(() => resolve()))
+  const service = new MemoryService({
+    store: {
+      get: () => ({ ...defaultMemoryDesktopSettings, enabled: true, port: address.port }),
+      set: () => undefined,
+    },
+    userData: join(tmpdir(), "memory-missing-resource-profile"),
+    resources: join(tmpdir(), "memory-missing-resource-bundle"),
+    executable: process.execPath,
+    request: async () => {
+      throw new Error("offline")
+    },
+  })
+  const snapshot = await service.start()
+  expect(snapshot.state).toBe("failed")
+  expect(snapshot.reason).toBe("gateway_not_bundled")
+  await service.stop()
 })
 
 test("compatible external Gateway remains owned by its process", async () => {

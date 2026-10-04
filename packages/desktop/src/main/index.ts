@@ -48,7 +48,7 @@ import { spawnWslSidecar } from "./wsl/sidecar"
 import { migrate } from "./migrate"
 import { cleanupStoreFiles } from "./store-cleanup"
 import { startBackgroundCli } from "./background-cli"
-import { MemoryService, managedMemoryProvider } from "./memory-service"
+import { MemoryService, managedMemoryProvider, memoryGatewayResources, memoryDevRelaunchArgs } from "./memory-service"
 import { getStore } from "./store"
 import { setNativeTranslations } from "./native-translations"
 
@@ -129,9 +129,13 @@ const main = Effect.gen(function* () {
     if (!TEST_ONBOARDING) return
 
     const previous = process.env.OPENCODE_TEST_ONBOARDING_ROOT
-    const root = previous && dirname(resolve(previous)) === resolve(tmpdir())
-      && /^opencode-onboarding-[a-f0-9-]{36}$/u.test(basename(previous)) && existsSync(previous)
-      ? previous : join(tmpdir(), `opencode-onboarding-${randomUUID()}`)
+    const root =
+      previous &&
+      dirname(resolve(previous)) === resolve(tmpdir()) &&
+      /^opencode-onboarding-[a-f0-9-]{36}$/u.test(basename(previous)) &&
+      existsSync(previous)
+        ? previous
+        : join(tmpdir(), `opencode-onboarding-${randomUUID()}`)
     process.env.OPENCODE_TEST_ONBOARDING_ROOT = root
     ;["data", "config", "cache", "state", "desktop", "session"].forEach((dir) =>
       mkdirSync(join(root, dir), { recursive: true }),
@@ -185,7 +189,8 @@ const main = Effect.gen(function* () {
         if (value === undefined) delete process.env[key]
         else process.env[key] = value
       }
-      app.relaunch()
+      if (app.isPackaged) app.relaunch()
+      else app.relaunch({ execPath: process.execPath, args: memoryDevRelaunchArgs(app.getAppPath(), process.argv) })
       app.quit()
     })
   }
@@ -218,20 +223,62 @@ const main = Effect.gen(function* () {
   const memoryService = new MemoryService({
     store: getStore("opencode.memory"),
     userData: app.getPath("userData"),
-    resources: app.isPackaged ? process.resourcesPath : join(process.cwd(), "resources"),
+    resources: memoryGatewayResources(app.isPackaged, app.getAppPath(), process.resourcesPath),
     executable: process.execPath,
   })
-  if (memoryService.snapshot.settings.enabled) {
+  const configureMemoryEnv = () => {
+    for (const [key, value] of Object.entries(inheritedMemoryEnv)) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+    if (!memoryService.snapshot.settings.enabled) return
     const settings = memoryService.snapshot.settings
     try {
-      process.env.OPENCODE_CONFIG_CONTENT = managedMemoryProvider(process.env.OPENCODE_CONFIG_CONTENT, settings.model, settings.port)
+      process.env.OPENCODE_CONFIG_CONTENT = managedMemoryProvider(
+        process.env.OPENCODE_CONFIG_CONTENT,
+        settings.model,
+        settings.port,
+      )
       process.env.OPENCODE_MEMORY_INTEGRATION = "true"
       process.env.OPENCODE_MEMORY_GATEWAY_URL = `http://127.0.0.1:${settings.port}/v1`
     } catch (error) {
       logger.error("managed memory provider setup failed", error)
     }
   }
-  void memoryService.detectOllama().then(() => memoryService.snapshot.settings.enabled && memoryService.snapshot.settings.autoStart ? memoryService.start() : undefined)
+  configureMemoryEnv()
+  const serverReady = Deferred.makeUnsafe<ServerReadyData, unknown>()
+  const applyMemorySettings = async () => {
+    if (app.isPackaged) {
+      relaunch()
+      return
+    }
+    configureMemoryEnv()
+    if (SIDECAR_VERSION !== "v1") {
+      logger.warn("memory settings require a dev sidecar restart for this sidecar version")
+      return
+    }
+    const ready = await Effect.runPromise(Deferred.await(serverReady))
+    if (!ready.password) throw new Error("dev_sidecar_credentials_unavailable")
+    await killSidecar()
+    const url = new URL(ready.url)
+    const { listener, health } = await spawnLocalServer(url.hostname, Number(url.port), ready.password, {
+      userDataPath: app.getPath("userData"),
+      onStdout: (message) => writeLog("server", "stdout", { message }),
+      onStderr: (message) => writeLog("server", "stderr", { message }, "warn"),
+      onExit: (code) => writeLog("utility", "sidecar exited", { code }, "warn"),
+    })
+    server = listener
+    await health.wait
+    for (const window of BrowserWindow.getAllWindows()) window.reload()
+  }
+  void memoryService
+    .detectOllama()
+    .then(() =>
+      memoryService.snapshot.settings.enabled && memoryService.snapshot.settings.autoStart
+        ? memoryService.start()
+        : undefined,
+    )
+    .catch((error) => logger.error("memory gateway startup failed", error))
 
   let memoryQuitPending = false
   app.on("before-quit", (event) => {
@@ -289,8 +336,6 @@ const main = Effect.gen(function* () {
     })
   }
 
-  const serverReady = Deferred.makeUnsafe<ServerReadyData, unknown>()
-
   yield* Effect.promise(() => app.whenReady())
 
   if (!TEST_ONBOARDING) migrate()
@@ -323,6 +368,7 @@ const main = Effect.gen(function* () {
     memoryService,
     killSidecar: () => killSidecar(),
     relaunch,
+    applyMemorySettings,
     awaitInitialization: Effect.fnUntraced(
       function* () {
         logger.log("awaiting server ready")
