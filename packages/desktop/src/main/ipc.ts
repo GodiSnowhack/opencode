@@ -28,6 +28,8 @@ import { createMemoryStatusClient } from "./memory-status"
 import { createMemoryManagementClient, MemoryManagementError } from "./memory-management"
 import { MemoryGateway } from "@opencode-ai/core/memory/gateway"
 import type { MemoryManagementAction, MemoryManagementResponse } from "@opencode-ai/core/memory/management-types"
+import type { MemoryService } from "./memory-service"
+import type { MemoryServiceAction } from "@opencode-ai/core/memory/desktop"
 
 const pickerFilters = (ext?: string[]) => {
   if (!ext || ext.length === 0) return undefined
@@ -37,6 +39,7 @@ const pickerFilters = (ext?: string[]) => {
 const pickedFiles = createPickedFileAuthorizations()
 
 type Deps = {
+  memoryService: MemoryService
   killSidecar: () => Promise<void> | void
   relaunch: () => void
   awaitInitialization: () => Promise<ServerReadyData>
@@ -59,6 +62,54 @@ type Deps = {
 }
 
 export function registerIpcHandlers(deps: Deps) {
+  ipcMain.handle("memory-service", async (event, action: MemoryServiceAction) => {
+    if (!action || typeof action.kind !== "string") throw new Error("invalid_action")
+    switch (action.kind) {
+      case "get": return deps.memoryService.snapshot
+      case "update": {
+        const before = deps.memoryService.snapshot.settings
+        const result = await deps.memoryService.update(action.settings)
+        if (before.enabled !== result.settings.enabled || before.model !== result.settings.model || before.port !== result.settings.port)
+          setTimeout(() => deps.relaunch(), 200)
+        return result
+      }
+      case "start": return deps.memoryService.start()
+      case "stop": await deps.memoryService.stop(); return deps.memoryService.snapshot
+      case "restart": return deps.memoryService.restart()
+      case "checkOllama": await deps.memoryService.detectOllama(); return deps.memoryService.snapshot
+      case "diagnostics":
+      case "backups":
+      case "backup":
+      case "supportBundle": return deps.memoryService.maintenance(action.kind)
+      case "restoreDryRun":
+      case "restore": return deps.memoryService.maintenance(action.kind, action.backupId, action.confirm)
+      case "importDatabase": {
+        const window = BrowserWindow.fromWebContents(event.sender)
+        if (!window || window.isDestroyed() || event.senderFrame !== event.sender.mainFrame) throw new Error("invalid_sender")
+        const picked = await dialog.showOpenDialog(window, {
+          properties: ["openFile"],
+          filters: [{ name: "SQLite database", extensions: ["db"] }],
+        })
+        if (picked.canceled || picked.filePaths.length !== 1) return deps.memoryService.snapshot
+        return deps.memoryService.importDatabase(picked.filePaths[0]!)
+      }
+      default: throw new Error("invalid_action")
+    }
+  })
+  const serviceSubscriptions = new Map<number, () => void>()
+  ipcMain.handle("memory-service-subscribe", (event) => {
+    serviceSubscriptions.get(event.sender.id)?.()
+    const sender = event.sender
+    const cleanup = deps.memoryService.subscribe((snapshot) => {
+      if (!sender.isDestroyed()) sender.send("memory-service-update", snapshot)
+    })
+    serviceSubscriptions.set(sender.id, cleanup)
+    sender.once("destroyed", () => { cleanup(); serviceSubscriptions.delete(sender.id) })
+  })
+  ipcMain.handle("memory-service-unsubscribe", (event) => {
+    serviceSubscriptions.get(event.sender.id)?.()
+    serviceSubscriptions.delete(event.sender.id)
+  })
   const memoryStatus = createMemoryStatusClient()
   const memoryManagement = createMemoryManagementClient()
   const memorySubscriptions = new Map<number, { id: string; cleanup: () => void }>()

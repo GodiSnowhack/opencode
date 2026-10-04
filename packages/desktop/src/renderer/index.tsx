@@ -344,6 +344,8 @@ function DesktopRoot(props: { windowState: DesktopWindowState }) {
   })
   const platform: Platform = {
     ...createPlatform(props.windowState),
+    memoryService: (action) => window.api.memoryService(action),
+    memoryServiceSubscribe: (callback) => window.api.memoryServiceSubscribe(callback),
     memoryStatus: {
       enabled: () => memory.enabled,
       snapshot: () => memory.snapshot,

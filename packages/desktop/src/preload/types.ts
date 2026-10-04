@@ -5,6 +5,7 @@ import type { DesktopNativeBundle } from "@opencode-ai/app/i18n/desktop-native"
 import type { MemoryStatusSnapshot } from "@opencode-ai/core/memory/status"
 import type { Identity } from "@opencode-ai/core/memory/gateway"
 import type { MemoryManagementAction, MemoryManagementResponse } from "@opencode-ai/core/memory/management-types"
+import type { MemoryServiceAction, MemoryServiceSnapshot } from "@opencode-ai/core/memory/desktop"
 export type {
   WslDistroProbe,
   WslInstalledDistro,
@@ -46,6 +47,8 @@ export type FatalRendererError = {
 }
 
 export type ElectronAPI = {
+  memoryService: (action: MemoryServiceAction) => Promise<unknown>
+  memoryServiceSubscribe: (callback: (snapshot: MemoryServiceSnapshot) => void) => Promise<() => void>
   memoryManage: (action: MemoryManagementAction) => Promise<MemoryManagementResponse>
   memoryStatusEnabled: () => Promise<boolean>
   memoryEffectiveProjectID: (

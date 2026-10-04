@@ -1,5 +1,11 @@
 # Memory Gateway integration (Phase 1)
 
+## Phase 8 Desktop integration
+
+Packaged OpenCode Desktop now includes a local Memory Gateway under its resources. Settings → Memory stores preferences in the Desktop settings store, starts the Gateway as an owned Electron Node subprocess, and configures a separate `memory-local` provider. Existing provider entries remain intact. A compatible external Gateway is recognized through `/health` (`apiVersion: 1`) and is never stopped by Desktop. A different service on the configured port is rejected. The Gateway listens on `127.0.0.1` and writes its database, backups, logs, and support bundles under Desktop `userData/Memory`.
+
+Provider and enable/disable changes trigger a Desktop relaunch so the OpenCode server reloads its provider configuration and Phase 1 identity transport. Injection and other Gateway-only settings restart the owned Gateway. The previous environment-based manual development flow below remains supported. See [MEMORY_DESKTOP_SETUP.md](MEMORY_DESKTOP_SETUP.md) for the user workflow, maintenance, and packaging details.
+
 This fork can attach project and session identity to requests sent to a locally configured Memory Gateway. It is an opt-in transport integration; it does not inject memories or add a Desktop settings screen.
 
 ## Enable

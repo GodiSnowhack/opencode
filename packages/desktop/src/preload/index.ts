@@ -11,6 +11,16 @@ const updaterHandler = (_: unknown, state: UpdaterState) => {
 }
 
 const api: ElectronAPI = {
+  memoryService: (action) => ipcRenderer.invoke("memory-service", action),
+  memoryServiceSubscribe: async (callback) => {
+    const listener = (_: unknown, snapshot: Parameters<typeof callback>[0]) => callback(snapshot)
+    ipcRenderer.on("memory-service-update", listener)
+    await ipcRenderer.invoke("memory-service-subscribe")
+    return () => {
+      ipcRenderer.removeListener("memory-service-update", listener)
+      void ipcRenderer.invoke("memory-service-unsubscribe")
+    }
+  },
   memoryManage: (action) => ipcRenderer.invoke("memory-manage", action),
   memoryStatusEnabled: () => ipcRenderer.invoke("memory-status-enabled"),
   memoryEffectiveProjectID: (input) => ipcRenderer.invoke("memory-effective-project-id", input),

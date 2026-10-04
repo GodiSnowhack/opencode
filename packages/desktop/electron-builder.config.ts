@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process"
+import { cpSync, existsSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
@@ -42,6 +43,11 @@ const APP_IDS = {
 } as const
 
 const getBase = (appId: string): Configuration => ({
+  afterPack: async (context) => {
+    const source = path.join(packageDir, "resources", "memory-gateway", "node_modules")
+    if (!existsSync(source)) return
+    cpSync(source, path.join(context.appOutDir, "resources", "memory-gateway", "node_modules"), { recursive: true, force: true })
+  },
   artifactName: "opencode-desktop-${os}-${arch}.${ext}",
   directories: {
     output: "dist",
@@ -55,8 +61,9 @@ const getBase = (appId: string): Configuration => ({
   extraMetadata: {
     desktopName: `${appId}.desktop`,
   },
-  files: ["out/**/*", "resources/**/*", "!resources/opencode-cli*"],
+  files: ["out/**/*", "resources/**/*", "!resources/opencode-cli*", "!resources/memory-gateway/**"],
   extraResources: [
+    { from: "resources/memory-gateway", to: "memory-gateway", filter: ["**/*"] },
     ...(channel === "dev"
       ? [
           {

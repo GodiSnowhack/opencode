@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto"
-import { mkdirSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync } from "node:fs"
 import * as http from "node:http"
 import { createServer } from "node:net"
 import { homedir, tmpdir } from "node:os"
-import { join } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import { getCACertificates, setDefaultCACertificates } from "node:tls"
 import type { Event } from "electron"
 import { app, BrowserWindow } from "electron"
@@ -48,6 +48,8 @@ import { spawnWslSidecar } from "./wsl/sidecar"
 import { migrate } from "./migrate"
 import { cleanupStoreFiles } from "./store-cleanup"
 import { startBackgroundCli } from "./background-cli"
+import { MemoryService, managedMemoryProvider } from "./memory-service"
+import { getStore } from "./store"
 import { setNativeTranslations } from "./native-translations"
 
 const APP_NAMES: Record<string, string> = {
@@ -126,8 +128,11 @@ const main = Effect.gen(function* () {
   const onboardingTestRoot = ((): string | undefined => {
     if (!TEST_ONBOARDING) return
 
-    const root = join(tmpdir(), `opencode-onboarding-${randomUUID()}`)
-    rmSync(root, { recursive: true, force: true })
+    const previous = process.env.OPENCODE_TEST_ONBOARDING_ROOT
+    const root = previous && dirname(resolve(previous)) === resolve(tmpdir())
+      && /^opencode-onboarding-[a-f0-9-]{36}$/u.test(basename(previous)) && existsSync(previous)
+      ? previous : join(tmpdir(), `opencode-onboarding-${randomUUID()}`)
+    process.env.OPENCODE_TEST_ONBOARDING_ROOT = root
     ;["data", "config", "cache", "state", "desktop", "session"].forEach((dir) =>
       mkdirSync(join(root, dir), { recursive: true }),
     )
@@ -168,9 +173,18 @@ const main = Effect.gen(function* () {
     await killSidecar()
     wslServers.stopAll()
   }
+  const inheritedMemoryEnv = {
+    OPENCODE_CONFIG_CONTENT: process.env.OPENCODE_CONFIG_CONTENT,
+    OPENCODE_MEMORY_INTEGRATION: process.env.OPENCODE_MEMORY_INTEGRATION,
+    OPENCODE_MEMORY_GATEWAY_URL: process.env.OPENCODE_MEMORY_GATEWAY_URL,
+  }
   const relaunch = () => {
     setAppQuitting()
     void stopSidecars().finally(() => {
+      for (const [key, value] of Object.entries(inheritedMemoryEnv)) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
       app.relaunch()
       app.quit()
     })
@@ -201,6 +215,31 @@ const main = Effect.gen(function* () {
   }
 
   const shellEnv = preferAppEnv(app.getPath("userData"))
+  const memoryService = new MemoryService({
+    store: getStore("opencode.memory"),
+    userData: app.getPath("userData"),
+    resources: app.isPackaged ? process.resourcesPath : join(process.cwd(), "resources"),
+    executable: process.execPath,
+  })
+  if (memoryService.snapshot.settings.enabled) {
+    const settings = memoryService.snapshot.settings
+    try {
+      process.env.OPENCODE_CONFIG_CONTENT = managedMemoryProvider(process.env.OPENCODE_CONFIG_CONTENT, settings.model, settings.port)
+      process.env.OPENCODE_MEMORY_INTEGRATION = "true"
+      process.env.OPENCODE_MEMORY_GATEWAY_URL = `http://127.0.0.1:${settings.port}/v1`
+    } catch (error) {
+      logger.error("managed memory provider setup failed", error)
+    }
+  }
+  void memoryService.detectOllama().then(() => memoryService.snapshot.settings.enabled && memoryService.snapshot.settings.autoStart ? memoryService.start() : undefined)
+
+  let memoryQuitPending = false
+  app.on("before-quit", (event) => {
+    if (memoryQuitPending) return
+    memoryQuitPending = true
+    event.preventDefault()
+    void memoryService.stop().finally(() => app.quit())
+  })
 
   app.on("second-instance", (_event: Event, argv: string[]) => {
     const urls = argv.filter((arg: string) => arg.startsWith("opencode://"))
@@ -268,7 +307,7 @@ const main = Effect.gen(function* () {
       }),
     ),
   )
-  app.setAsDefaultProtocolClient("opencode")
+  if (!TEST_ONBOARDING) app.setAsDefaultProtocolClient("opencode")
   registerRendererProtocol()
   setDockIcon()
   const updater = setupAutoUpdater(stopSidecars)
@@ -281,6 +320,7 @@ const main = Effect.gen(function* () {
     relaunch,
   }
   registerIpcHandlers({
+    memoryService,
     killSidecar: () => killSidecar(),
     relaunch,
     awaitInitialization: Effect.fnUntraced(
