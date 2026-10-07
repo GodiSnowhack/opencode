@@ -1,0 +1,875 @@
+
+  ! eslint(no-unneeded-ternary): Unnecessary use of boolean literals in conditional expression
+     ,-[packages/opencode/src/tool/registry.ts:459:9]
+ 458 |           .filter((entry) =>
+ 459 | ,->         (entry[0] === "exclusiveMaximum" || entry[0] === "exclusiveMinimum") && typeof entry[1] === "boolean"
+ 460 | |             ? false
+ 461 | `->           : true,
+ 462 |           )
+     `----
+  help: Remove this ternary operator
+
+  ! eslint(no-unused-vars): Identifier 'ChildProcessSpawner' is imported but never used.
+    ,-[packages/opencode/src/tool/registry.ts:47:10]
+ 46 | import { Effect, Layer, Context } from "effect"
+ 47 | import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+    :          ^^^^^^^^^|^^^^^^^^^
+    :                   `-- 'ChildProcessSpawner' is imported here
+ 48 | import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'FSUtil' is imported but never used.
+    ,-[packages/core/test/location-layer.test.ts:23:10]
+ 22 | import { toolDefinitions } from "./lib/tool"
+ 23 | import { FSUtil } from "../src/fs-util"
+    :          ^^^|^^
+    :             `-- 'FSUtil' is imported here
+ 24 | import { Credential } from "../src/credential"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Credential' is imported but never used.
+    ,-[packages/core/test/location-layer.test.ts:24:10]
+ 23 | import { FSUtil } from "../src/fs-util"
+ 24 | import { Credential } from "../src/credential"
+    :          ^^^^^|^^^^
+    :               `-- 'Credential' is imported here
+ 25 | import { Database } from "../src/database/database"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Global' is imported but never used.
+    ,-[packages/core/test/location-layer.test.ts:27:10]
+ 26 | import { EventV2 } from "../src/event"
+ 27 | import { Global } from "../src/global"
+    :          ^^^|^^
+    :             `-- 'Global' is imported here
+ 28 | import { ModelsDev } from "../src/models-dev"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'ModelsDev' is imported but never used.
+    ,-[packages/core/test/location-layer.test.ts:28:10]
+ 27 | import { Global } from "../src/global"
+ 28 | import { ModelsDev } from "../src/models-dev"
+    :          ^^^^|^^^^
+    :              `-- 'ModelsDev' is imported here
+ 29 | import { Npm } from "../src/npm"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Npm' is imported but never used.
+    ,-[packages/core/test/location-layer.test.ts:29:10]
+ 28 | import { ModelsDev } from "../src/models-dev"
+ 29 | import { Npm } from "../src/npm"
+    :          ^|^
+    :           `-- 'Npm' is imported here
+ 30 | import { Project } from "../src/project"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Project' is imported but never used.
+    ,-[packages/core/test/location-layer.test.ts:30:10]
+ 29 | import { Npm } from "../src/npm"
+ 30 | import { Project } from "../src/project"
+    :          ^^^|^^^
+    :             `-- 'Project' is imported here
+ 31 | import { Reference } from "../src/reference"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'normalize' is imported but never used.
+     ,-[packages/session-ui/src/components/message-part.tsx:369:10]
+ 368 | import type { IconProps } from "@opencode-ai/ui/icon"
+ 369 | import { normalize, resolveFileDiff } from "./session-diff"
+     :          ^^^^|^^^^
+     :              `-- 'normalize' is imported here
+ 370 | 
+     `----
+  help: Consider removing this import.
+
+  ! typescript-eslint(no-unnecessary-type-arguments): This is the default value for this type parameter, so it can be omitted.
+    ,-[packages/core/src/tool/tool.ts:17:57]
+ 16 | 
+ 17 | export type SchemaType<A> = Schema.Codec<A, any, never, never>
+    :                                                         ^^^^^
+ 18 | 
+    `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'Definition<Input, Structured>' is more narrow than the original type.
+    ,-[packages/core/src/tool/tool.ts:77:16]
+ 76 | >(config: Config<Input, Output, Structured>): Definition<Input, Structured> {
+ 77 |   const tool = Object.freeze({}) as Definition<Input, Structured>
+    :                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 78 |   const definitions = new Map<string, ToolDefinition>()
+    `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'Definition<Input, Output>' is more narrow than the original type.
+     ,-[packages/core/src/tool/tool.ts:144:21]
+ 143 | ) => {
+ 144 |   const decorated = Object.freeze({}) as Definition<Input, Output>
+     :                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 145 |   runtimes.set(decorated, { ...runtimeOf(tool), permission })
+     `----
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+     ,-[packages/core/src/session/runner/llm.ts:275:31]
+ 274 |       })
+ 275 |       const withPublication = Semaphore.makeUnsafe(1).withPermit
+     :                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|
+     :                                                |                `-- This reference may be unbound and lose `this` context
+ 276 |       const publish = (event: LLMEvent, outputPaths: ReadonlyArray<string> = []) =>
+     `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'StreamMethod' is more narrow than the original type.
+    ,-[packages/core/test/session-runner.test.ts:79:13]
+ 78 |         prepare: () => Effect.die("unused"),
+ 79 | ,->     stream: ((request: LLMRequest) => {
+ 80 | |         requests.push(request)
+ 81 | |         if (responseStream) {
+ 82 | |           const stream = responseStream
+ 83 | |           responseStream = undefined
+ 84 | |           return stream
+ 85 | |         }
+ 86 | |         const events = streamFailure
+ 87 | |           ? Stream.fail(streamFailure)
+ 88 | |           : Stream.fromIterable(responses === undefined ? response : (responses.shift() ?? []))
+ 89 | |         if (!streamGate) return events
+ 90 | |         return Stream.unwrap(
+ 91 | |           (streamStarted ? Deferred.succeed(streamStarted, undefined) : Effect.void).pipe(
+ 92 | |             Effect.andThen(Deferred.await(streamGate)),
+ 93 | |             Effect.as(events),
+ 94 | |           ),
+ 95 | |         )
+ 96 | `->     }) as unknown as LLMClientShape["stream"],
+ 97 |         generate: () => Effect.die("unused"),
+    `----
+
+  ! typescript-eslint(consistent-return): Function 'fragmentFixture' expected a return value.
+     ,-[packages/core/test/session-runner.test.ts:412:25]
+ 411 |     
+ 412 | ,-> const fragmentFixture = (kind: FragmentKind, id: string, chunks: readonly string[]): FragmentFixture => {
+ 413 | |     const text = chunks.join("")
+ 414 | |     switch (kind) {
+ 415 | |       case "text": {
+ 416 | |         const partialEvents = [
+ 417 | |           LLMEvent.stepStart({ index: 0 }),
+ 418 | |           LLMEvent.textStart({ id }),
+ 419 | |           ...chunks.map((text) => LLMEvent.textDelta({ id, text })),
+ 420 | |         ]
+ 421 | |         const expectedContent = { type: "text", id, text }
+ 422 | |         return {
+ 423 | |           delta: SessionEvent.Text.Delta,
+ 424 | |           partialEvents,
+ 425 | |           completeEvents: [
+ 426 | |             ...partialEvents,
+ 427 | |             LLMEvent.textEnd({ id }),
+ 428 | |             LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+ 429 | |             LLMEvent.finish({ reason: "stop" }),
+ 430 | |           ],
+ 431 | |           expectedAssistant: { type: "assistant", finish: "stop", content: [expectedContent] },
+ 432 | |           expectedContent,
+ 433 | |         }
+ 434 | |       }
+ 435 | |       case "reasoning": {
+ 436 | |         const partialEvents = [
+ 437 | |           LLMEvent.stepStart({ index: 0 }),
+ 438 | |           LLMEvent.reasoningStart({ id }),
+ 439 | |           ...chunks.map((text) => LLMEvent.reasoningDelta({ id, text })),
+ 440 | |         ]
+ 441 | |         const expectedContent = { type: "reasoning", id, text }
+ 442 | |         return {
+ 443 | |           delta: SessionEvent.Reasoning.Delta,
+ 444 | |           partialEvents,
+ 445 | |           completeEvents: [
+ 446 | |             ...partialEvents,
+ 447 | |             LLMEvent.reasoningEnd({ id }),
+ 448 | |             LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+ 449 | |             LLMEvent.finish({ reason: "stop" }),
+ 450 | |           ],
+ 451 | |           expectedAssistant: { type: "assistant", finish: "stop", content: [expectedContent] },
+ 452 | |           expectedContent,
+ 453 | |         }
+ 454 | |       }
+ 455 | |       case "tool input": {
+ 456 | |         const partialEvents = [
+ 457 | |           LLMEvent.stepStart({ index: 0 }),
+ 458 | |           LLMEvent.toolInputStart({ id, name: "echo" }),
+ 459 | |           ...chunks.map((text) => LLMEvent.toolInputDelta({ id, name: "echo", text })),
+ 460 | |         ]
+ 461 | |         const expectedContent = { type: "tool", id, state: { status: "pending", input: text } }
+ 462 | |         return {
+ 463 | |           delta: SessionEvent.Tool.Input.Delta,
+ 464 | |           partialEvents,
+ 465 | |           completeEvents: [...partialEvents, LLMEvent.toolInputEnd({ id, name: "echo" })],
+ 466 | |           expectedAssistant: { type: "assistant", content: [expectedContent] },
+ 467 | |           expectedContent,
+ 468 | |         }
+ 469 | |       }
+ 470 | |     }
+ 471 | `-> }
+ 472 |     
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/session-runner.test.ts:879:37]
+ 878 |       ])
+ 879 |       expect(systemTexts(requests[1]!)).toContainEqual(expect.stringContaining("Reviewer skills"))
+     :                          ^^^^^|^^^^^^
+     :                               `-- This expression already has the type 'LLMRequest'
+ 880 |     }),
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:1573:37]
+ 1572 |       ])
+ 1573 |       expect(systemTexts(requests[1]!)).toContain("Replacement context")
+      :                          ^^^^^|^^^^^^
+      :                               `-- This expression already has the type 'LLMRequest'
+ 1574 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:1909:35]
+ 1908 |       expect(requests).toHaveLength(2)
+ 1909 |       expect(userTexts(requests[0]!)).toEqual(["Start working"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 1910 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "Change direction"])
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:1910:35]
+ 1909 |       expect(userTexts(requests[0]!)).toEqual(["Start working"])
+ 1910 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "Change direction"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 1911 |       expect((yield* session.context(sessionID)).map((message) => message.type)).toEqual([
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:1961:35]
+ 1960 |       expect(requests).toHaveLength(3)
+ 1961 |       expect(userTexts(requests[0]!)).toEqual(["Start working"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 1962 |       expect(userTexts(requests[1]!)).toEqual(["Start working"])
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:1962:35]
+ 1961 |       expect(userTexts(requests[0]!)).toEqual(["Start working"])
+ 1962 |       expect(userTexts(requests[1]!)).toEqual(["Start working"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 1963 |       expect(userTexts(requests[2]!)).toEqual(["Start working", "Wait until continuation ends"])
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:1963:35]
+ 1962 |       expect(userTexts(requests[1]!)).toEqual(["Start working"])
+ 1963 |       expect(userTexts(requests[2]!)).toEqual(["Start working", "Wait until continuation ends"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 1964 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2005:35]
+ 2004 |       expect(requests).toHaveLength(2)
+ 2005 |       expect(userTexts(requests[0]!)).toEqual(["Interrupt current work"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2006 |       expect(userTexts(requests[1]!)).toEqual(["Interrupt current work", "Run after interrupt"])
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2006:35]
+ 2005 |       expect(userTexts(requests[0]!)).toEqual(["Interrupt current work"])
+ 2006 |       expect(userTexts(requests[1]!)).toEqual(["Interrupt current work", "Run after interrupt"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2007 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2048:35]
+ 2047 |       expect(requests).toHaveLength(2)
+ 2048 |       expect(userTexts(requests[0]!)).toEqual(["Interrupt current work"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2049 |       expect(userTexts(requests[1]!)).toEqual(["Interrupt current work", "Steer after interrupt"])
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2049:35]
+ 2048 |       expect(userTexts(requests[0]!)).toEqual(["Interrupt current work"])
+ 2049 |       expect(userTexts(requests[1]!)).toEqual(["Interrupt current work", "Steer after interrupt"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2050 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2090:35]
+ 2089 |       expect(requests).toHaveLength(3)
+ 2090 |       expect(userTexts(requests[0]!)).toEqual(["Start working"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2091 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "Queue first"])
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2091:35]
+ 2090 |       expect(userTexts(requests[0]!)).toEqual(["Start working"])
+ 2091 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "Queue first"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2092 |       expect(userTexts(requests[2]!)).toEqual(["Start working", "Queue first", "Queue second"])
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2092:35]
+ 2091 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "Queue first"])
+ 2092 |       expect(userTexts(requests[2]!)).toEqual(["Start working", "Queue first", "Queue second"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2093 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2125:35]
+ 2124 |       expect(requests).toHaveLength(2)
+ 2125 |       expect(userTexts(requests[0]!)).toEqual(["Start steering"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2126 |       expect(userTexts(requests[1]!)).toEqual(["Start steering", "Queue for later"])
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2126:35]
+ 2125 |       expect(userTexts(requests[0]!)).toEqual(["Start steering"])
+ 2126 |       expect(userTexts(requests[1]!)).toEqual(["Start steering", "Queue for later"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2127 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2177:35]
+ 2176 |       expect(requests).toHaveLength(4)
+ 2177 |       expect(userTexts(requests[0]!)).toEqual(["Start working"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2178 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "Queue first"])
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2178:35]
+ 2177 |       expect(userTexts(requests[0]!)).toEqual(["Start working"])
+ 2178 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "Queue first"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2179 |       expect(userTexts(requests[2]!)).toEqual([
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2179:35]
+ 2178 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "Queue first"])
+ 2179 |       expect(userTexts(requests[2]!)).toEqual([
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2180 |         "Start working",
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2185:35]
+ 2184 |       ])
+ 2185 |       expect(userTexts(requests[3]!)).toEqual([
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2186 |         "Start working",
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2228:35]
+ 2227 |       expect(requests).toHaveLength(2)
+ 2228 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "First steer", "Second steer"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2229 |       yield* (yield* SessionExecution.Service).wake(sessionID)
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2260:35]
+ 2259 |       expect(requests).toHaveLength(2)
+ 2260 |       expect(userTexts(requests[1]!)).toEqual(["Start working", "Recover with this"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2261 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2439:35]
+ 2438 |       expect(requests).toHaveLength(1)
+ 2439 |       expect(userTexts(requests[0]!)).toEqual(["Wait in queue"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2440 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2465:35]
+ 2464 | 
+ 2465 |       expect(userTexts(requests[0]!)).toEqual(["Recover promoted input"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2466 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2487:35]
+ 2486 |       expect(requests).toHaveLength(1)
+ 2487 |       expect(userTexts(requests[0]!)).toEqual(["Run committed promotion"])
+      :                        ^^^^^|^^^^^^
+      :                             `-- This expression already has the type 'LLMRequest'
+ 2488 |     }),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/session-runner.test.ts:2891:41]
+ 2890 |       }
+ 2891 |       yield* questions.reject(pending[0]!.id)
+      :                               ^^^^^|^^^^^
+      :                                    `-- This expression already has the type '{ readonly id: string & Brand<"QuestionV2.ID">; readonly sessionID: string & Brand<"SessionID">; readonly questions: readonly { readonly question: string; readonly header: string; readonly options: readonly { ...; }[]; readonly multiple?: boolean | undefined; readonly custom?: boolean | undefined; }[]; readonly tool...'
+ 2892 |       const exit = yield* Fiber.join(run)
+      `----
+
+  ! typescript-eslint(consistent-return): Function expected a return value.
+    ,-[packages/opencode/src/permission/index.ts:84:22]
+ 83 | 
+ 84 |       if (!needsAsk) return
+    :                      ^^^^^^
+ 85 | 
+    `----
+
+  ! typescript-eslint(consistent-return): Function expected a return value.
+     ,-[packages/opencode/src/permission/index.ts:139:9]
+ 138 |         }
+ 139 |         return
+     :         ^^^^^^
+ 140 |       }
+     `----
+
+  ! typescript-eslint(consistent-return): Function expected a return value.
+     ,-[packages/opencode/src/permission/index.ts:143:35]
+ 142 |       yield* Deferred.succeed(existing.deferred, undefined)
+ 143 |       if (input.reply === "once") return
+     :                                   ^^^^^^
+ 144 | 
+     `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion to `any` detected: consider using a more specific type to ensure safety.
+     ,-[packages/opencode/src/tool/registry.ts:172:72]
+ 171 |                 }
+ 172 |                 const result = yield* Effect.promise(() => def.execute(args as any, pluginCtx))
+     :                                                                        ^^^^^^^^^^^
+ 173 |                 const output = typeof result === "string" ? result : result.output
+     `----
+
+  ! typescript-eslint(consistent-return): Function expected no return value.
+     ,-[packages/opencode/src/tool/registry.ts:322:7]
+ 321 |       if (Object.keys(tools).length === 0) return
+ 322 |       return codeMode.describeCatalog(tools, Object.keys(yield* mcp.clients()).map(McpCatalog.sanitize))
+     :       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 323 |     })
+     `----
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+     ,-[packages/opencode/src/tool/registry.ts:378:22]
+ 377 |             jsonSchema,
+ 378 |             execute: tool.execute,
+     :                      ^^^^^^^^^^^^|
+     :                            |     `-- This reference may be unbound and lose `this` context
+ 379 |             formatValidationError: tool.formatValidationError,
+     `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+     ,-[packages/opencode/src/tool/registry.ts:379:36]
+ 378 |             execute: tool.execute,
+ 379 |             formatValidationError: tool.formatValidationError,
+     :                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^|
+     :                                                 |            `-- This reference may be unbound and lose `this` context
+ 380 |           }
+     `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type '{ [key: string]: JSONSchema7Definition; } | undefined' is more narrow than the original type.
+     ,-[packages/opencode/src/tool/registry.ts:423:66]
+ 422 |   return (
+ 423 |     $defs && isJsonSchemaObject($defs) ? { ...rest, definitions: $defs as JSONSchema7["definitions"] } : rest
+     :                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 424 |   ) as JSONSchema7
+     `----
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+     ,-[packages/opencode/src/session/prompt.ts:654:36]
+ 653 |               .getModel(model.providerID, model.modelID)
+ 654 |               .pipe(Effect.catchIf(Provider.ModelNotFoundError.isInstance, () => Effect.succeed(undefined)))
+     :                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|
+     :                                                       |                  `-- This reference may be unbound and lose `this` context
+ 655 |           : undefined
+     `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/session-ui/src/components/message-part.tsx:449:34]
+ 448 |   return {
+ 449 |     name: item?.name ?? `${raw[0]!.toUpperCase()}${raw.slice(1)}`,
+     :                            ^^^|^^^
+     :                               `-- This expression already has the type 'string'
+ 450 |     color,
+     `----
+
+  ! typescript-eslint(consistent-return): Function 'agentColor' expected no return value.
+     ,-[packages/session-ui/src/components/message-part.tsx:457:3]
+ 456 |   if (!value) return
+ 457 |   return themeColors[value] ?? value
+     :   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 458 | }
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/session-ui/src/components/message-part.tsx:659:57]
+ 658 |   if (a.refs.length !== b.refs.length) return false
+ 659 |   return a.refs.every((ref, i) => sameRef(ref, b.refs[i]!))
+     :                                               ^^^^^|^^^^^
+     :                                                    `-- This expression already has the type 'PartRef'
+ 660 | }
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/session-ui/src/components/message-part.tsx:666:51]
+ 665 |   if (a.length !== b.length) return false
+ 666 |   return a.every((item, i) => sameGroup(item, b[i]!))
+     :                                              ^^|^^^
+     :                                                `-- This expression already has the type 'PartGroup'
+ 667 | }
+     `----
+
+  ! typescript-eslint(consistent-return): Function expected no return value.
+     ,-[packages/session-ui/src/components/message-part.tsx:803:19]
+ 802 |                   if (entry.type !== "part") return
+ 803 |                   return msgs().get(entry.ref.messageID)
+     :                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 804 |                 })
+     `----
+
+  ! typescript-eslint(consistent-return): Function expected no return value.
+     ,-[packages/session-ui/src/components/message-part.tsx:808:19]
+ 807 |                   if (entry.type !== "part") return
+ 808 |                   return part().get(entry.ref.messageID)?.get(entry.ref.partID)
+     :                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 809 |                 })
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/session-ui/src/components/message-part.tsx:948:36]
+ 947 |           <UserMessageDisplay
+ 948 |             message={userMessage() as UserMessage}
+     :                      ^^^^^^|^^^^^^ ^^^^^^^|^^^^^^^
+     :                            |              `-- Casting it to 'UserMessage' is unnecessary
+     :                            `-- This expression already has the type 'UserMessage'
+ 949 |             parts={props.parts}
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/session-ui/src/components/message-part.tsx:959:41]
+ 958 |           <AssistantMessageDisplay
+ 959 |             message={assistantMessage() as AssistantMessage}
+     :                      ^^^^^^^^^|^^^^^^^^ ^^^^^^^^^|^^^^^^^^^^
+     :                               |                  `-- Casting it to 'AssistantMessage' is unnecessary
+     :                               `-- This expression already has the type 'AssistantMessage'
+ 960 |             parts={props.parts}
+     `----
+
+  ! typescript-eslint(consistent-return): Function expected no return value.
+      ,-[packages/session-ui/src/components/message-part.tsx:1027:19]
+ 1026 |                   if (entry.type !== "part") return
+ 1027 |                   return part().get(entry.ref.partID)
+      :                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 1028 |                 })
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'TextPart | undefined' is more narrow than the original type.
+      ,-[packages/session-ui/src/components/message-part.tsx:1205:11]
+ 1204 |   const textPart = createMemo(
+ 1205 |     () => props.parts?.find((p) => p.type === "text" && !(p as TextPart).synthetic) as TextPart | undefined,
+      :           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 1206 |   )
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1205:61]
+ 1204 |   const textPart = createMemo(
+ 1205 |     () => props.parts?.find((p) => p.type === "text" && !(p as TextPart).synthetic) as TextPart | undefined,
+      :                                                           | ^^^^^|^^^^^^
+      :                                                           |      `-- Casting it to 'TextPart' is unnecessary
+      :                                                           `-- This expression already has the type 'TextPart'
+ 1206 |   )
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1210:81]
+ 1209 | 
+ 1210 |   const files = createMemo(() => (props.parts?.filter((p) => p.type === "file") as FilePart[]) ?? [])
+      :                                   ^^^^^^^^^^^^^^^^^^^^^^|^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^|^^^^^^^
+      :                                                         |                             `-- Casting it to 'FilePart[]' is unnecessary
+      :                                                         `-- This expression already has the type 'FilePart[]'
+ 1211 | 
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1218:83]
+ 1217 | 
+ 1218 |   const agents = createMemo(() => (props.parts?.filter((p) => p.type === "agent") as AgentPart[]) ?? [])
+      :                                    ^^^^^^^^^^^^^^^^^^^^^^^|^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^|^^^^^^^
+      :                                                           |                              `-- Casting it to 'AgentPart[]' is unnecessary
+      :                                                           `-- This expression already has the type 'AgentPart[]'
+ 1219 | 
+      `----
+
+  ! typescript-eslint(no-floating-promises): Promises must be awaited, add void operator to ignore.
+      ,-[packages/session-ui/src/components/message-part.tsx:1244:5]
+ 1243 |   const openImagePreview = (url: string, alt?: string) => {
+ 1244 |     dialog.show(() => <ImagePreview src={url} alt={alt} />)
+      :     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 1245 |   }
+      `----
+  help: The promise must end with a call to .catch, or end with a call to .then with a rejection handler, or be explicitly marked as ignored with the `void` operator.
+
+  ! typescript-eslint(no-unnecessary-type-conversion): This type conversion does not change the type or value of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1372:25]
+ 1371 |               useV2={props.useV2Actions}
+ 1372 |               disabled={!!busy()}
+      :                         ^^^^^|^^
+      :                          |   `-- This expression already has type 'boolean'.
+ 1373 |               onMouseDown={(event) => event.preventDefault()}
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1409:45]
+ 1408 |         .filter((r) => r.source?.text?.start !== undefined && r.source?.text?.end !== undefined)
+ 1409 |         .map((r) => ({ start: r.source!.text!.start, end: r.source!.text!.end, type: "file" as const })),
+      :                              ^^^^^^^|^^^^^^^^
+      :                                     `-- This expression already has the type 'FilePartSourceText'
+ 1410 |       ...props.agents
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1409:73]
+ 1408 |         .filter((r) => r.source?.text?.start !== undefined && r.source?.text?.end !== undefined)
+ 1409 |         .map((r) => ({ start: r.source!.text!.start, end: r.source!.text!.end, type: "file" as const })),
+      :                                                          ^^^^^^^|^^^^^^^^
+      :                                                                 `-- This expression already has the type 'FilePartSourceText'
+ 1410 |       ...props.agents
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'ToolPart' is more narrow than the original type.
+      ,-[packages/session-ui/src/components/message-part.tsx:1578:22]
+ 1577 |   const i18n = useI18n()
+ 1578 |   const part = () => props.part as ToolPart
+      :                      ^^^^^^^^^^^^^^^^^^^^^^
+ 1579 |   if (part().tool === "todowrite") return null
+      `----
+
+  ! typescript-eslint(consistent-return): Function expected no return value.
+      ,-[packages/session-ui/src/components/message-part.tsx:1594:45]
+ 1593 |     const value = partMetadata().sessionId
+ 1594 |     if (typeof value === "string" && value) return value
+      :                                             ^^^^^^^^^^^^
+ 1595 |   })
+      `----
+
+  ! typescript-eslint(consistent-return): Function expected no return value.
+      ,-[packages/session-ui/src/components/message-part.tsx:1598:5]
+ 1597 |     if (part().tool !== "task") return
+ 1598 |     return sessionLink(taskId(), data.sessionHref)
+      :     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 1599 |   })
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion to `any` detected: consider using a more specific type to ensure safety.
+      ,-[packages/session-ui/src/components/message-part.tsx:1615:60]
+ 1614 |         <Switch>
+ 1615 |           <Match when={part().state.status === "error" && (part().state as any).error}>
+      :                                                            ^^^^^^^^^^^^^^^^^^^
+ 1616 |             {(error) => {
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'TextPart' is more narrow than the original type.
+      ,-[packages/session-ui/src/components/message-part.tsx:1699:22]
+ 1698 |   const numfmt = createMemo(() => new Intl.NumberFormat(i18n.locale()))
+ 1699 |   const part = () => props.part as TextPart
+      :                      ^^^^^^^^^^^^^^^^^^^^^^
+ 1700 |   const interrupted = createMemo(
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1702:60]
+ 1701 |     () =>
+ 1702 |       props.message.role === "assistant" && (props.message as AssistantMessage).error?.name === "MessageAbortedError",
+      :                                              ^^^^^^|^^^^^^ ^^^^^^^^^|^^^^^^^^^^
+      :                                                    |                `-- Casting it to 'AssistantMessage' is unnecessary
+      :                                                    `-- This expression already has the type 'AssistantMessage'
+ 1703 |   )
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1707:35]
+ 1706 |     if (props.message.role !== "assistant") return ""
+ 1707 |     const message = props.message as AssistantMessage
+      :                     ^^^^^^|^^^^^^ ^^^^^^^^^|^^^^^^^^^^
+      :                           |                `-- Casting it to 'AssistantMessage' is unnecessary
+      :                           `-- This expression already has the type 'AssistantMessage'
+ 1708 |     const match = data.store.provider?.all?.get(message.providerID)
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1714:35]
+ 1713 |     if (props.message.role !== "assistant") return ""
+ 1714 |     const message = props.message as AssistantMessage
+      :                     ^^^^^^|^^^^^^ ^^^^^^^^^|^^^^^^^^^^
+      :                           |                `-- Casting it to 'AssistantMessage' is unnecessary
+      :                           `-- This expression already has the type 'AssistantMessage'
+ 1715 |     const completed = message.time.completed
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1735:34]
+ 1734 |     if (props.message.role !== "assistant") return ""
+ 1735 |     const agent = (props.message as AssistantMessage).agent
+      :                    ^^^^^^|^^^^^^ ^^^^^^^^^|^^^^^^^^^^
+      :                          |                `-- Casting it to 'AssistantMessage' is unnecessary
+      :                          `-- This expression already has the type 'AssistantMessage'
+ 1736 |     const items = [
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1746:71]
+ 1745 |   const streaming = createMemo(
+ 1746 |     () => props.message.role === "assistant" && typeof (props.message as AssistantMessage).time.completed !== "number",
+      :                                                         ^^^^^^|^^^^^^ ^^^^^^^^^|^^^^^^^^^^
+      :                                                               |                `-- Casting it to 'AssistantMessage' is unnecessary
+      :                                                               `-- This expression already has the type 'AssistantMessage'
+ 1747 |   )
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type 'ReasoningPart' is more narrow than the original type.
+      ,-[packages/session-ui/src/components/message-part.tsx:1802:22]
+ 1801 |   const data = useData()
+ 1802 |   const part = () => props.part as ReasoningPart
+      :                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 1803 |   const streaming = createMemo(
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:1804:71]
+ 1803 |   const streaming = createMemo(
+ 1804 |     () => props.message.role === "assistant" && typeof (props.message as AssistantMessage).time.completed !== "number",
+      :                                                         ^^^^^^|^^^^^^ ^^^^^^^^^|^^^^^^^^^^
+      :                                                               |                `-- Casting it to 'AssistantMessage' is unnecessary
+      :                                                               `-- This expression already has the type 'AssistantMessage'
+ 1805 |   )
+      `----
+
+  ! typescript-eslint(consistent-return): Function expected no return value.
+      ,-[packages/session-ui/src/components/message-part.tsx:2209:9]
+ 2208 |             if (!filediff) return
+ 2209 | ,->         return {
+ 2210 | |             file: filediff.file || props.input.filePath || "",
+ 2211 | |             patch: typeof filediff.patch === "string" ? filediff.patch : undefined,
+ 2212 | |             before: typeof filediff.before === "string" ? filediff.before : undefined,
+ 2213 | |             after: typeof filediff.after === "string" ? filediff.after : undefined,
+ 2214 | `->         }
+ 2215 |           },
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since the receiver accepts the original type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:2263:96]
+ 2262 |                   <div data-slot="message-part-path">
+ 2263 |                     <span data-slot="message-part-directory">{getDirectory(props.input.filePath!)}</span>
+      :                                                                                                ^
+ 2264 |                   </div>
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since the receiver accepts the original type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:2280:64]
+ 2279 |                 <Show when={!pending() && props.metadata.filediff}>
+ 2280 |                   <DiffChanges changes={props.metadata.filediff!} />
+      :                                                                ^
+ 2281 |                 </Show>
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since the receiver accepts the original type of the expression.
+      ,-[packages/session-ui/src/components/message-part.tsx:2330:96]
+ 2329 |                   <div data-slot="message-part-path">
+ 2330 |                     <span data-slot="message-part-directory">{getDirectory(props.input.filePath!)}</span>
+      :                                                                                                ^
+ 2331 |                   </div>
+      `----
+
+  ! typescript-eslint(consistent-return): Function expected no return value.
+      ,-[packages/session-ui/src/components/message-part.tsx:2372:7]
+ 2371 |       if (list.length !== 1) return
+ 2372 |       return list[0]
+      :       ^^^^^^^^^^^^^^
+ 2373 |     })
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion from `any` detected: consider using type guards or a safer assertion.
+      ,-[packages/session-ui/src/components/message-part.tsx:2621:40]
+ 2620 |     const i18n = useI18n()
+ 2621 |     const questions = createMemo(() => (props.input.questions ?? []) as QuestionInfo[])
+      :                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 2622 |     const answers = createMemo(() => (props.metadata.answers ?? []) as QuestionAnswer[])
+      `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion from `any` detected: consider using type guards or a safer assertion.
+      ,-[packages/session-ui/src/components/message-part.tsx:2622:38]
+ 2621 |     const questions = createMemo(() => (props.input.questions ?? []) as QuestionInfo[])
+ 2622 |     const answers = createMemo(() => (props.metadata.answers ?? []) as QuestionAnswer[])
+      :                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 2623 |     const completed = createMemo(() => answers().length > 0)
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since the receiver accepts the original type of the expression.
+    ,-[packages/desktop/scripts/phase9b-live-acceptance.ts:81:83]
+ 80 |   const inventory = service.snapshot.ollama.chatModels ?? []
+ 81 |   const config = JSON.parse(managedMemoryProvider(undefined, inventory, proxy.port!, 16384))
+    :                                                                                   ^
+ 82 |   for (const model of Object.values(config.provider["memory-local"].models) as { limit: { output: number } }[])
+    `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe type assertion: type '{ limit: { output: number; }; }[]' is more narrow than the original type.
+    ,-[packages/desktop/scripts/phase9b-live-acceptance.ts:82:23]
+ 81 |   const config = JSON.parse(managedMemoryProvider(undefined, inventory, proxy.port!, 16384))
+ 82 |   for (const model of Object.values(config.provider["memory-local"].models) as { limit: { output: number } }[])
+    :                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 83 |     model.limit.output = 1024
+    `----
+
+  ! typescript-eslint(no-unsafe-type-assertion): Unsafe assertion from `any` detected: consider using type guards or a safer assertion.
+     ,-[packages/desktop/scripts/phase9b-live-acceptance.ts:246:14]
+ 245 |           assert(response.ok)
+ 246 | ,->       return (await response.json()) as {
+ 247 | |           items: { id: string; scope: string; type: string; summary: string; projectId?: string }[]
+ 248 | `->       }
+ 249 |         }
+     `----
+
+Found 89 warnings and 0 errors.
+Finished in 11.8s on 27 files with 130 rules using 12 threads.

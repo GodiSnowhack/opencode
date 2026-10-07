@@ -1273,7 +1273,7 @@ const layer = Layer.effect(
             ]
             if (model.providerID === "memory-local" && process.env.OPENCODE_AGENT_TOOLS_ENABLED === "true")
               system.push(
-                "Use the available read-only tools when needed. Never invent a tool result or claim success before receiving it. Respect denied actions and do not repeat the same denied call. If a result is truncated, state that the data is incomplete.",
+                "Use the available workspace tools when needed. Read existing files before editing or replacing them. Never invent a tool result or claim success before receiving it. Respect denied actions and do not repeat the same denied call. If a result is truncated, state that the data is incomplete.",
               )
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)

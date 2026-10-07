@@ -1,0 +1,87 @@
+$ bun test --only-failures
+bun test v1.3.14 (0d9b296a)
+
+test\skill-discovery.test.ts:
+[11:19:38.768] ERROR (#137710): failed to download skill file {
+  url: "https://skills.example.test/catalog/deploy/missing.md",
+  error: {
+    reason: {
+      response: [Object ...],
+      request: [Object ...],
+      description: "non 2xx status code",
+      _tag: "StatusCodeError",
+    },
+    _tag: "HttpClientError",
+    "~effect/http/HttpClientError": "~effect/http/HttpClientError",
+  },
+}
+
+test\effect\cross-spawn-spawner.test.ts:
+[11:19:49.603] ERROR (#147624): 195 |     fx.effect(
+196 |       "captures stdout via .all when no stderr",
+197 |       Effect.gen(function* () {
+198 |         const handle = yield* ChildProcess.make("echo", ["hello from stdout"])
+199 |         const all = yield* decodeByteStream(handle.all)
+200 |         expect(all).toBe("hello from stdout")
+      ^
+error: expect(received).toBe(expected)
+
+Expected: "hello from stdout"
+Received: ""hello from stdout""
+
+      at toBe (unknown:1:1)
+      at C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\packages\core\test\effect\cross-spawn-spawner.test.ts:200:21
+
+195 |     fx.effect(
+196 |       "captures stdout via .all when no stderr",
+197 |       Effect.gen(function* () {
+198 |         const handle = yield* ChildProcess.make("echo", ["hello from stdout"])
+199 |         const all = yield* decodeByteStream(handle.all)
+200 |         expect(all).toBe("hello from stdout")
+      ^
+error: expect(received).toBe(expected)
+
+Expected: "hello from stdout"
+Received: ""hello from stdout""
+
+      at toBe (unknown:1:1)
+      at C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\packages\core\test\effect\cross-spawn-spawner.test.ts:200:21
+      at ~effect/Effect/successCont (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:910:23)
+      at runLoop (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:420:66)
+      at evaluate (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:380:20)
+      at C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:734:14
+      at evaluate (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:397:14)
+      at C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:734:14
+      at flushWaiters (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:2761:13)
+      at openUnsafe (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:2773:4)
+      at onEnd (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\@effect+platform-node-shared@4.0.0-beta.83+43902b222b0d7d3e\node_modules\@effect\platform-node-shared\dist\NodeStream.js:226:11)
+      at emit (node:events:92:22)
+      at endReadableNT (internal:streams/readable:865:50)
+      at processTicksAndRejections (unknown:7:39)
+(fail) cross-spawn spawner > combined output (all) > captures stdout via .all when no stderr [152.84ms]
+[11:20:42.107] INFO (#234371): watcher backend {
+
+test\effect\layer-node\node-build.test.ts:
+  directory: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-core-test-RFpTqW",
+  platform: "win32",
+  backend: "windows",
+}
+[11:20:42.109] INFO (#234482): project copy refresh started {
+  projectID: "global",
+}
+[11:20:42.111] INFO (#234482): project copy refresh done {
+  projectID: "global",
+  updated: [],
+  removed: [],
+}
+[11:20:42.140] INFO (#234371): booting location services {
+  directory: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-core-test-RFpTqW",
+  workspaceID: undefined,
+}
+
+ 1155 pass
+ 7 skip
+ 1 fail
+ 3202 expect() calls
+Ran 1163 tests across 148 files. [103.68s]
+error: script "test" exited with code 1

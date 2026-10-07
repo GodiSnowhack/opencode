@@ -3470,6 +3470,8 @@ describe("SessionRunnerLLM", () => {
       yield* setup
       const previousEnabled = process.env.OPENCODE_MEMORY_INTEGRATION
       const previousURL = process.env.OPENCODE_MEMORY_GATEWAY_URL
+      const previousTools = process.env.OPENCODE_AGENT_TOOLS_ENABLED
+      process.env.OPENCODE_AGENT_TOOLS_ENABLED = "true"
       process.env.OPENCODE_MEMORY_INTEGRATION = "true"
       process.env.OPENCODE_MEMORY_GATEWAY_URL = "http://127.0.0.1:11435/v1"
       currentModel = Model.make({
@@ -3530,18 +3532,96 @@ describe("SessionRunnerLLM", () => {
         else process.env.OPENCODE_MEMORY_INTEGRATION = previousEnabled
         if (previousURL === undefined) delete process.env.OPENCODE_MEMORY_GATEWAY_URL
         else process.env.OPENCODE_MEMORY_GATEWAY_URL = previousURL
+        if (previousTools === undefined) delete process.env.OPENCODE_AGENT_TOOLS_ENABLED
+        else process.env.OPENCODE_AGENT_TOOLS_ENABLED = previousTools
+      }
+    }),
+  )
+
+  it.effect("managed Gateway shares one bounded file turn across continuation and resets for a new user turn", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const previous = {
+        tools: process.env.OPENCODE_AGENT_TOOLS_ENABLED,
+        max: process.env.OPENCODE_AGENT_MAX_TOOL_CALLS,
+      }
+      process.env.OPENCODE_AGENT_TOOLS_ENABLED = "true"
+      process.env.OPENCODE_AGENT_MAX_TOOL_CALLS = "5"
+      currentModel = Model.make({
+        id: "qwen3-coder:30b",
+        provider: "memory-local",
+        route: OpenAIChat.route.with({ endpoint: { baseURL: "http://127.0.0.1:11435/v1" } }),
+      })
+      try {
+        const turns: string[] = []
+        const registry = yield* ToolRegistry.Service
+        for (const name of ["fs_read", "fs_edit", "fs_write"])
+          yield* registry.register({
+            [name]: Tool.make({
+              description: "File workflow fixture",
+              input: Schema.Struct({ path: Schema.String }),
+              output: Schema.String,
+              execute: (_input, ctx) =>
+                Effect.sync(() => {
+                  turns.push(ctx.turnID!)
+                  return '{"ok":true}'
+                }),
+            }),
+          })
+        const session = yield* SessionV2.Service
+        yield* session.prompt({
+          sessionID,
+          prompt: Prompt.make({ text: "Edit two files and create a third" }),
+          resume: false,
+        })
+        const calls = [
+          ["fs_read", "a"],
+          ["fs_read", "b"],
+          ["fs_edit", "a"],
+          ["fs_write", "c"],
+          ["fs_edit", "b"],
+        ]
+        responses = calls.map(([name, path], index) => [
+          LLMEvent.stepStart({ index: 0 }),
+          LLMEvent.toolCall({ id: `file-${index}`, name, input: { path } }),
+          LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
+          LLMEvent.finish({ reason: "tool-calls" }),
+        ])
+        responses.push([
+          LLMEvent.stepStart({ index: 0 }),
+          LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+          LLMEvent.finish({ reason: "stop" }),
+        ])
+        requests.length = 0
+        yield* session.resume(sessionID)
+        expect(turns).toHaveLength(5)
+        expect(new Set(turns).size).toBe(1)
+        expect(requests).toHaveLength(6)
+        expect(requests[5]?.tools).toEqual([])
+        yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "New file turn" }), resume: false })
+        requests.length = 0
+        responses = undefined
+        response = []
+        yield* session.resume(sessionID)
+        expect(requests[0]?.tools.map((tool) => tool.name)).toContain("fs_write")
+      } finally {
+        if (previous.tools === undefined) delete process.env.OPENCODE_AGENT_TOOLS_ENABLED
+        else process.env.OPENCODE_AGENT_TOOLS_ENABLED = previous.tools
+        if (previous.max === undefined) delete process.env.OPENCODE_AGENT_MAX_TOOL_CALLS
+        else process.env.OPENCODE_AGENT_MAX_TOOL_CALLS = previous.max
       }
     }),
   )
 
   for (const scenario of [
-    { agent: "build", enabled: "true", modelTools: true, expected: ["echo", "defect"] },
+    { agent: "build", enabled: "true", modelTools: true, expected: ["fs_read", "fs_write"] },
     { agent: "build", enabled: "false", modelTools: true, expected: [] },
     { agent: "plan", enabled: "false", modelTools: true, expected: [] },
+    { agent: "plan", enabled: "true", modelTools: true, expected: ["fs_read"] },
     { agent: "build", enabled: "true", modelTools: false, expected: [] },
-  ] as const) {
+  ].flatMap((scenario) => ["gemma4:26b-a4b", "qwen3-coder:30b"].map((modelID) => ({ ...scenario, modelID })))) {
     it.effect(
-      `managed Gateway ${scenario.agent} exposes tools=${scenario.enabled} modelTools=${scenario.modelTools}`,
+      `managed Gateway ${scenario.modelID} ${scenario.agent} exposes tools=${scenario.enabled} modelTools=${scenario.modelTools}`,
       () =>
         Effect.gen(function* () {
           yield* setup
@@ -3554,24 +3634,54 @@ describe("SessionRunnerLLM", () => {
           process.env.OPENCODE_MEMORY_GATEWAY_URL = "http://127.0.0.1:11435/v1"
           process.env.OPENCODE_AGENT_TOOLS_ENABLED = scenario.enabled
           currentModel = Model.make({
-            id: "memory-model",
+            id: scenario.modelID,
             provider: "memory-local",
             route: OpenAIChat.route.with({ endpoint: { baseURL: "http://127.0.0.1:11435/v1" } }),
           })
           if (!scenario.modelTools) {
             const catalog = yield* Catalog.Service
             yield* catalog.transform((editor) =>
-              editor.model.update(ProviderV2.ID.make("memory-local"), ModelV2.ID.make("memory-model"), (model) => {
+              editor.model.update(ProviderV2.ID.make("memory-local"), ModelV2.ID.make(scenario.modelID), (model) => {
                 model.capabilities.tools = false
               }),
             )
           }
           try {
+            const registry = yield* ToolRegistry.Service
+            yield* registry.register({
+              fs_read: Tool.withPermission(
+                Tool.make({
+                  description: "Managed read fixture",
+                  input: Schema.Struct({}),
+                  output: Schema.String,
+                  execute: () =>
+                    Effect.sync(() => {
+                      executions.push("managed read")
+                      return "read"
+                    }),
+                }),
+                "read",
+              ),
+              fs_write: Tool.withPermission(
+                Tool.make({
+                  description: "Managed write fixture",
+                  input: Schema.Struct({}),
+                  output: Schema.String,
+                  execute: () =>
+                    Effect.sync(() => {
+                      executions.push("managed write")
+                      return "written"
+                    }),
+                }),
+                "edit",
+              ),
+            })
             if (scenario.agent === "plan") {
               const agents = yield* AgentV2.Service
               yield* agents.transform((editor) =>
                 editor.update(AgentV2.ID.make("plan"), (agent) => {
                   agent.mode = "primary"
+                  agent.permissions = [...agent.permissions, { action: "edit", resource: "*", effect: "deny" }]
                 }),
               )
               const { db } = yield* Database.Service
@@ -3587,7 +3697,7 @@ describe("SessionRunnerLLM", () => {
             requests.length = 0
             executions.length = 0
             response =
-              scenario.agent === "build" && scenario.enabled === "false"
+              scenario.agent === "build"
                 ? [
                     LLMEvent.stepStart({ index: 0 }),
                     LLMEvent.toolCall({ id: "unadvertised-read", name: "echo", input: { text: "must not execute" } }),
@@ -3600,6 +3710,10 @@ describe("SessionRunnerLLM", () => {
             if (scenario.enabled === "true" && scenario.modelTools) expect(requests[0]?.toolChoice).toBeUndefined()
             else expect(requests[0]?.toolChoice).toMatchObject({ type: "none" })
             expect(requests[0]?.http?.headers?.["X-Memory-Session-Id"]).toBe(sessionID)
+            if (scenario.agent === "build") {
+              expect(executions).toEqual([])
+              expect(requests).toHaveLength(1)
+            }
             if (scenario.agent === "build" && scenario.enabled === "false") {
               expect(executions).toEqual([])
               expect(requests).toHaveLength(1)
@@ -3608,7 +3722,7 @@ describe("SessionRunnerLLM", () => {
               requests.length = 0
               response = []
               yield* session.resume(sessionID)
-              expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect"])
+              expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["fs_read", "fs_write"])
             }
           } finally {
             if (previous.memory === undefined) delete process.env.OPENCODE_MEMORY_INTEGRATION

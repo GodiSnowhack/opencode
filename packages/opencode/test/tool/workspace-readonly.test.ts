@@ -12,6 +12,7 @@ import { MessageID, SessionID } from "@/session/schema"
 import { Tool } from "@/tool/tool"
 import { ToolTurnBudget, TOOL_RESULT_BYTES, executeBounded, recordToolMetric, toolMetrics } from "@/tool/turn-budget"
 import { workspacePath } from "@/tool/workspace-readonly"
+import { Permission } from "@/permission"
 import { disposeAllInstances, TestInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
@@ -22,6 +23,39 @@ afterEach(async () => {
 })
 
 describe("managed workspace READ tools", () => {
+  for (const modelID of ["gemma4:26b-a4b", "qwen3-coder:30b"]) {
+    it.instance(`exposes file tools to ${modelID} and preserves ordinary providers`, () =>
+      Effect.gen(function* () {
+        const registry = yield* ToolRegistry.Service
+        const agents = yield* Agent.Service
+        const agent = yield* agents.defaultInfo()
+        const managed = yield* registry.tools({
+          providerID: ProviderV2.ID.make("memory-local"),
+          modelID: ModelV2.ID.make(modelID),
+          agent,
+        })
+        expect(managed.map((tool) => tool.id)).toContain("fs.write")
+        expect(managed.map((tool) => tool.id)).toContain("fs.edit")
+        expect(managed.map((tool) => tool.id)).not.toContain("shell")
+        const other = yield* registry.tools({
+          providerID: ProviderV2.ID.make("other"),
+          modelID: ModelV2.ID.make(modelID),
+          agent,
+        })
+        expect(other.map((tool) => tool.id)).toContain("read")
+        expect(other.map((tool) => tool.id)).toContain("bash")
+        expect(managed.map((tool) => tool.id)).not.toContain("bash")
+        expect(other.map((tool) => tool.id)).not.toContain("fs.write")
+      }),
+    )
+  }
+  test("managed catalog respects upstream Plan/read-only edit denial", () => {
+    const denied = Permission.disabled(
+      ["fs.read", "fs.write", "fs.edit", "fs.search", "fs.glob"],
+      [{ permission: "edit", pattern: "*", action: "deny" }],
+    )
+    expect([...denied]).toEqual(["fs.write", "fs.edit"])
+  })
   test("rejects traversal, Windows absolute paths, UNC, and symlink escape", async () => {
     const base = await fs.mkdtemp(path.join(os.tmpdir(), "phase9a-"))
     const root = path.join(base, "workspace with spaces")
@@ -59,7 +93,7 @@ describe("managed workspace READ tools", () => {
     }
   })
 
-  it.instance("exposes only three read tools to managed Qwen and reuses native read", () =>
+  it.instance("exposes bounded managed file tools and shares read/edit revisions", () =>
     Effect.gen(function* () {
       const registry = yield* ToolRegistry.Service
       const agents = yield* Agent.Service
@@ -68,7 +102,15 @@ describe("managed workspace READ tools", () => {
         modelID: ModelV2.ID.make("qwen3:8b"),
         agent: yield* agents.defaultInfo(),
       })
-      expect(tools.map((item) => item.id).sort()).toEqual(["fs.list", "fs.read", "project.info"])
+      expect(tools.map((item) => item.id).sort()).toEqual([
+        "fs.edit",
+        "fs.glob",
+        "fs.list",
+        "fs.read",
+        "fs.search",
+        "fs.write",
+        "project.info",
+      ])
       const test = yield* TestInstance
       yield* Effect.promise(() =>
         fs.writeFile(path.join(test.directory, "данные теста.txt"), "Phase 9A читает UTF-8 корректно."),
@@ -86,6 +128,13 @@ describe("managed workspace READ tools", () => {
       const result = yield* read.execute({ path: "данные теста.txt" }, context)
       expect(result.output).toContain("Phase 9A читает UTF-8 корректно.")
       expect(result.output).not.toContain(test.directory)
+      const edited = yield* tools
+        .find((item) => item.id === "fs.edit")!
+        .execute({ path: "данные теста.txt", oldString: "Phase 9A", newString: "Phase 9B" }, context)
+      expect(edited.output).toContain('"ok":true')
+      expect(yield* Effect.promise(() => fs.readFile(path.join(test.directory, "данные теста.txt"), "utf8"))).toContain(
+        "Phase 9B",
+      )
       const listed = yield* tools.find((item) => item.id === "fs.list")!.execute({ path: "." }, context)
       expect(listed.output).toContain("данные теста.txt")
       const info = yield* tools.find((item) => item.id === "project.info")!.execute({}, context)
@@ -94,13 +143,13 @@ describe("managed workspace READ tools", () => {
         { path: "данные теста.txt", approved: true, projectRoot: "C:\\Windows" },
         { ...context, ask: () => Effect.die(new Error("denied")) },
       )
-      expect(denied.output).toContain("NOT_ALLOWED")
+      expect(denied.output).toContain("PERMISSION_DENIED")
       const invalid = yield* read.execute({ path: 42 }, context).pipe(Effect.exit)
       expect(Exit.isFailure(invalid)).toBe(true)
       yield* Effect.promise(() => fs.writeFile(path.join(test.directory, "binary.bin"), Buffer.from([0, 1, 2, 3])))
       const binary = yield* read.execute({ path: "binary.bin" }, context)
       expect(binary.output).not.toContain("\\u0000")
-      expect(binary.output).toContain("EXECUTION_FAILED")
+      expect(binary.output).toContain("UNSUPPORTED_BINARY_FILE")
     }),
   )
 
@@ -118,6 +167,17 @@ describe("managed workspace READ tools", () => {
     expect(budget.begin("fs.list", { path: "." })).toBeUndefined()
     expect(budget.begin("project.info", {})).toBe("NOT_ALLOWED")
     expect(budget.available).toBe(false)
+  })
+  test("bounds escaped file result JSON and stops tools at turn output exhaustion", () => {
+    const budget = new ToolTurnBudget()
+    for (let index = 0; index < 4; index++) {
+      expect(budget.begin("fs.read", { path: `${index}.txt` })).toBeUndefined()
+      const result = budget.finish("fs.read", { path: `${index}.txt` }, '\\"\n\t'.repeat(20_000), 1)
+      expect(Buffer.byteLength(result.output)).toBeLessThanOrEqual(TOOL_RESULT_BYTES)
+      expect(() => JSON.parse(result.output)).not.toThrow()
+    }
+    expect(budget.available).toBe(false)
+    expect(budget.begin("fs.write", { path: "extra.txt" })).toBe("NOT_ALLOWED")
   })
 
   test("interrupts a running handler on timeout or user cancellation", async () => {

@@ -7,6 +7,7 @@ import type { SessionMessage } from "../session/message"
 import type { SessionSchema } from "../session/schema"
 
 export interface Context {
+  readonly turnID?: string
   readonly sessionID: SessionSchema.ID
   readonly agent: AgentV2.ID
   readonly assistantMessageID: SessionMessage.ID

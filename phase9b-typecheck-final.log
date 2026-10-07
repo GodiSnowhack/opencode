@@ -1,0 +1,23 @@
+• turbo 2.10.2
+
+   • Packages in scope: @opencode-ai/app, @opencode-ai/core, @opencode-ai/desktop, @opencode-ai/llm, @opencode-ai/session-ui, opencode
+   • Running typecheck in 6 packages
+   • Remote caching disabled
+
+@opencode-ai/desktop:typecheck: cache miss, executing 53cdd6af3b48f1ed
+@opencode-ai/app:typecheck: cache miss, executing 06262187c05d4b42
+@opencode-ai/core:typecheck: cache miss, executing b34c87b0b4fad140
+opencode:typecheck: cache miss, executing 9a29543cd6cc5f99
+@opencode-ai/llm:typecheck: cache hit, replaying logs 571208498143c21c
+@opencode-ai/llm:typecheck: $ tsgo --noEmit
+@opencode-ai/session-ui:typecheck: cache hit, replaying logs b460e2f61c5e648e
+@opencode-ai/session-ui:typecheck: $ tsgo --noEmit
+@opencode-ai/desktop:typecheck: $ tsgo -b
+@opencode-ai/app:typecheck: $ tsgo -b
+@opencode-ai/core:typecheck: $ tsgo --noEmit
+opencode:typecheck: $ tsgo --noEmit
+
+ Tasks:    6 successful, 6 total
+Cached:    2 cached, 6 total
+  Time:    29.453s 
+

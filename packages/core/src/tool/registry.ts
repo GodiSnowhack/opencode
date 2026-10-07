@@ -14,6 +14,7 @@ import { Tools } from "./tools"
 import { makeLocationNode } from "../effect/app-node"
 
 export type ExecuteInput = {
+  readonly turnID?: string
   readonly sessionID: SessionSchema.ID
   readonly agent: AgentV2.ID
   readonly assistantMessageID: SessionMessage.ID
@@ -60,6 +61,7 @@ const registryLayer = Layer.effect(
       if (advertised && registration.identity !== advertised)
         return { result: { type: "error" as const, value: `Stale tool call: ${input.call.name}` } }
       const pending = yield* settle(registration.tool, input.call, {
+        turnID: input.turnID,
         sessionID: input.sessionID,
         agent: input.agent,
         assistantMessageID: input.assistantMessageID,

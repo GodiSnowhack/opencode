@@ -25,6 +25,8 @@ import { SystemContextRegistry } from "../../system-context/registry"
 import { SkillGuidance } from "../../skill/guidance"
 import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
+import { v2WorkspaceNames } from "../../tool/workspace-operations"
+import { ToolTurnBudget, configuredMaxToolCalls, executeBounded } from "../../tool/turn-budget"
 import { ToolOutputStore } from "../../tool-output-store"
 import { SessionContextEpoch } from "../context-epoch"
 import { SessionCompaction } from "../compaction"
@@ -110,6 +112,7 @@ const layer = Layer.effect(
     const snapshots = yield* Snapshot.Service
     const db = (yield* Database.Service).db
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
+    const turnBudgets = new Map<string, { userID: string; budget: ToolTurnBudget }>()
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
       const session = yield* store.get(sessionID)
       if (!session) return yield* Effect.die(`Session not found: ${sessionID}`)
@@ -206,8 +209,17 @@ const layer = Layer.effect(
           : undefined
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
+      const userID = context.findLast((message) => message.type === "user")?.id ?? session.id
+      const oldBudget = turnBudgets.get(session.id)
+      const budget =
+        oldBudget?.userID === userID
+          ? oldBudget.budget
+          : new ToolTurnBudget(configuredMaxToolCalls(process.env.OPENCODE_AGENT_MAX_TOOL_CALLS))
+      turnBudgets.set(session.id, { userID, budget })
+      if (turnBudgets.size > 128) turnBudgets.delete(turnBudgets.keys().next().value!)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       const toolsDisabled =
+        (model.provider === "memory-local" && !budget.available) ||
         (managedModel !== undefined && !managedModel.capabilities.tools) ||
         MemoryGateway.agentToolsDisabled({
           providerID: model.provider,
@@ -215,6 +227,12 @@ const layer = Layer.effect(
         })
       const toolMaterialization =
         isLastStep || toolsDisabled ? undefined : yield* tools.materialize(agent.info?.permissions)
+      const definitions =
+        toolMaterialization?.definitions.filter((tool) =>
+          model.provider === "memory-local"
+            ? v2WorkspaceNames.includes(tool.name)
+            : !v2WorkspaceNames.includes(tool.name),
+        ) ?? []
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
         model,
@@ -238,7 +256,7 @@ const layer = Layer.effect(
           .filter((part): part is string => part !== undefined && part.length > 0)
           .map(SystemPart.make),
         messages: [...toLLMMessages(context, model), ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : [])],
-        tools: toolMaterialization?.definitions ?? [],
+        tools: definitions,
         toolChoice: isLastStep || toolsDisabled ? "none" : undefined,
       })
       if (yield* compaction.compactIfNeeded({ sessionID: session.id, entries, model, request }))
@@ -270,19 +288,89 @@ const layer = Layer.effect(
             }
             yield* publish(event)
             if (event.type !== "tool-call" || event.providerExecuted) return
-            if (!toolMaterialization) {
-              yield* withPublication(publisher.failUnsettledTools("Tools are disabled after the maximum agent steps"))
+            if (
+              !toolMaterialization ||
+              (model.provider === "memory-local" && !definitions.some((tool) => tool.name === event.name))
+            ) {
+              if (model.provider !== "memory-local") {
+                yield* withPublication(publisher.failUnsettledTools("Tools are disabled after the maximum agent steps"))
+                return
+              }
+              yield* publish(
+                LLMEvent.toolResult({
+                  id: event.id,
+                  name: event.name,
+                  result: { type: "error", value: "NOT_ALLOWED" },
+                }),
+              )
               return
             }
             needsContinuation = true
             const assistantMessageID = yield* publisher.assistantMessageID(event.id)
             yield* Effect.uninterruptibleMask((restore) =>
               restore(
-                toolMaterialization.settle({
-                  sessionID: session.id,
-                  agent: agent.id,
-                  assistantMessageID,
-                  call: event,
+                Effect.gen(function* () {
+                  const started = Date.now()
+                  const limit = model.provider === "memory-local" ? budget.begin(event.name, event.input) : undefined
+                  if (limit) {
+                    yield* Effect.logInfo("agent_tool_settlement", {
+                      invocationId: event.id,
+                      sessionId: session.id,
+                      tool: event.name,
+                      permission: "DENY",
+                      durationMs: 0,
+                      errorCode: limit,
+                    })
+                    return {
+                      result: { type: "error" as const, value: limit },
+                      output: undefined,
+                      outputPaths: undefined,
+                    }
+                  }
+                  const execution = toolMaterialization.settle({
+                    sessionID: session.id,
+                    agent: agent.id,
+                    assistantMessageID,
+                    ...(model.provider === "memory-local" ? { turnID: budget.id } : {}),
+                    call: event,
+                  })
+                  if (model.provider !== "memory-local") return yield* execution
+                  const settlement = yield* executeBounded(execution, undefined).pipe(
+                    Effect.catch((error) =>
+                      Cause.isTimeoutError(error) || error === "CANCELLED"
+                        ? Effect.succeed({
+                            result: { type: "error" as const, value: error === "CANCELLED" ? "CANCELLED" : "TIMEOUT" },
+                            output: undefined,
+                            outputPaths: undefined,
+                          })
+                        : Effect.fail(error),
+                    ),
+                  )
+                  const text =
+                    typeof settlement.result.value === "string"
+                      ? settlement.result.value
+                      : JSON.stringify(settlement.result.value)
+                  const bounded = budget.finish(event.name, event.input, text, Date.now() - started)
+                  yield* Effect.logInfo("agent_tool_settlement", {
+                    invocationId: event.id,
+                    sessionId: session.id,
+                    tool: event.name,
+                    durationMs: Date.now() - started,
+                    status: settlement.result.type === "error" ? "error" : "settled",
+                    errorCode:
+                      settlement.result.type === "error"
+                        ? ["TIMEOUT", "CANCELLED"].includes(text)
+                          ? text
+                          : "EXECUTION_FAILED"
+                        : undefined,
+                    truncated: bounded.truncated,
+                  })
+                  if (!bounded.truncated) return settlement
+                  return {
+                    result: { type: "text" as const, value: bounded.output },
+                    outputPaths: undefined,
+                    output: { structured: bounded.output, content: [{ type: "text" as const, text: bounded.output }] },
+                  }
                 }),
               ).pipe(
                 Effect.flatMap((settlement) =>

@@ -1,0 +1,14 @@
+(node:28748) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+INITIAL UI DEV
+Новая сессия
+DIMENSIONS 360 {"scroll":1143,"viewport":360,"body":"DEV\nНовая сессия\nСпросите что угодно, / — команды, @ — контекст...\nD\nDefault Project\nНет Git"}
+KNOWN SHELL OVERFLOW 360
+DIMENSIONS 768 {"scroll":1143,"viewport":768,"body":"DEV\nНовая сессия\nСпросите что угодно, / — команды, @ — контекст...\nD\nDefault Project\n/\nНет Git"}
+KNOWN SHELL OVERFLOW 768
+DIMENSIONS 1024 {"scroll":1143,"viewport":1024,"body":"DEV\nНовая сессия\nСпросите что угодно, / — команды, @ — контекст...\nD\nDefault Project\n/\nНет Git"}
+KNOWN SHELL OVERFLOW 1024
+DIMENSIONS 1440 {"scroll":1440,"viewport":1440,"body":"DEV\nНовая сессия\nСпросите что угодно, / — команды, @ — контекст...\nD\nDefault Project\n/\nНет Git"}
+PASS viewport 1440
+PASS isolated built Desktop startup, 4 viewports, no page errors
+CLEANUP C:\Users\shmeh\AppData\Local\Temp\opencode-onboarding-c437c477-719e-46bf-a048-c302a83853c1

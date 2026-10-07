@@ -36,6 +36,7 @@ import { useFileComponent } from "@opencode-ai/ui/context/file"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { type UiI18n, useI18n } from "@opencode-ai/ui/context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
+import { workspaceToolAction, workspaceToolStatus } from "./workspace-tool"
 import { Accordion } from "@opencode-ai/ui/accordion"
 import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
@@ -472,6 +473,11 @@ export function getToolInfo(
   metadata: Record<string, unknown> | undefined = {},
 ): ToolInfo {
   const i18n = useI18n()
+  const action = workspaceToolAction(tool)
+  if (action) {
+    tool = action
+    input = { ...input, filePath: input.path }
+  }
   switch (tool) {
     case "read":
       return {
@@ -1494,6 +1500,41 @@ export const ToolRegistry = {
   register: registerTool,
   render: getTool,
 }
+
+const WorkspaceToolCard: ToolComponent = (props) => {
+  const info = () => getToolInfo(props.tool, props.input, props.metadata)
+  return (
+    <BasicTool
+      {...props}
+      status={workspaceToolStatus(props.status, props.output, props.metadata.errorCode)}
+      defer={props.deferContent}
+      icon={info().icon}
+      trigger={{ title: info().title, subtitle: info().subtitle }}
+    >
+      <Show when={props.output}>
+        <pre class="min-w-0 max-h-80 overflow-y-auto whitespace-pre-wrap break-all text-12-regular">{props.output}</pre>
+      </Show>
+    </BasicTool>
+  )
+}
+
+for (const name of [
+  "project.info",
+  "project_info",
+  "fs.list",
+  "fs_list",
+  "fs.read",
+  "fs_read",
+  "fs.glob",
+  "fs_glob",
+  "fs.search",
+  "fs_search",
+  "fs.write",
+  "fs_write",
+  "fs.edit",
+  "fs_edit",
+])
+  ToolRegistry.register({ name, render: WorkspaceToolCard })
 
 function ToolFileAccordion(props: { path: string; actions?: JSX.Element; children: JSX.Element }) {
   const value = createMemo(() => props.path || "tool-file")

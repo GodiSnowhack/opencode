@@ -1,0 +1,119 @@
+bun test v1.3.14 (0d9b296a)
+killed 1 dangling process
+
+test\permission\next.test.ts:
+(fail) reply - reject cancels all pending for same session [5005.63ms]
+  ^ this test timed out after 5000ms.
+
+test\session\llm.test.ts:
+[11:58:09.673] INFO (#107501): stream {
+  providerID: "openai",
+  modelID: "gpt-5.2",
+  "session.id": "session-test-native-flag-off",
+  small: "false",
+  agent: "test",
+  mode: "primary",
+}
+[11:58:09.686] INFO (#107623): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\config.json",
+}
+[11:58:09.686] INFO (#107623): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\opencode.json",
+}
+[11:58:09.686] INFO (#107623): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\opencode.jsonc",
+}
+[11:58:09.688] INFO (#107623): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-2fg87ii4dzo\\opencode.json",
+}
+[11:58:09.884] INFO (#107501): llm runtime selected {
+  "llm.runtime": "ai-sdk",
+  "llm.provider": "openai",
+  "llm.model": "gpt-5.2",
+}
+[11:58:10.127] INFO (#108539): stream {
+  providerID: "openai",
+  modelID: "gpt-5.2",
+  "session.id": "session-test-native",
+  small: "false",
+  agent: "test",
+  mode: "primary",
+}
+[11:58:10.134] INFO (#108662): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\config.json",
+}
+[11:58:10.134] INFO (#108662): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\opencode.json",
+}
+[11:58:10.135] INFO (#108662): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\opencode.jsonc",
+}
+[11:58:10.137] INFO (#108662): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-t7oxb9z6bir\\opencode.json",
+}
+[11:58:10.356] INFO (#108539): llm runtime selected {
+  "llm.runtime": "native",
+  "llm.provider": "openai",
+  "llm.model": "gpt-5.2",
+}
+[11:58:10.636] INFO (#109583): stream {
+  providerID: "openai",
+  modelID: "gpt-5.2",
+  "session.id": "session-test-native-injected-tool",
+  small: "false",
+  agent: "test",
+  mode: "primary",
+}
+[11:58:10.637] INFO (#109706): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\config.json",
+}
+[11:58:10.637] INFO (#109706): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\opencode.json",
+}
+[11:58:10.645] INFO (#109706): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\opencode.jsonc",
+}
+[11:58:10.647] INFO (#109706): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-jkf3nj9bmxf\\opencode.json",
+}
+[11:58:10.863] INFO (#109583): llm runtime selected {
+  "llm.runtime": "native",
+  "llm.provider": "openai",
+  "llm.model": "gpt-5.2",
+}
+[11:58:11.139] INFO (#110627): stream {
+  providerID: "openai",
+  modelID: "gpt-5.2",
+  "session.id": "session-test-native-tool",
+  small: "false",
+  agent: "test",
+  mode: "primary",
+}
+[11:58:11.140] INFO (#110750): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\config.json",
+}
+[11:58:11.140] INFO (#110750): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\opencode.json",
+}
+[11:58:11.148] INFO (#110750): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-9980\\config\\opencode\\opencode.jsonc",
+}
+[11:58:11.150] INFO (#110750): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-p8ciddjh7da\\opencode.json",
+}
+[11:58:11.351] INFO (#110627): llm runtime selected {
+  "llm.runtime": "native",
+  "llm.provider": "openai",
+  "llm.model": "gpt-5.2",
+}
+
+test\session\revert-compact.test.ts:
+(fail) revert + compact workflow > restore messages in sequential order [5014.68ms]
+  ^ this test timed out after 5000ms.
+
+ 1673 pass
+ 20 skip
+ 1 todo
+ 2 fail
+ 16 snapshots, 4042 expect() calls
+Ran 1696 tests across 52 files. [244.55s]

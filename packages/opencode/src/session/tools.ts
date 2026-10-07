@@ -66,7 +66,12 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     abort: options.abortSignal!,
     messageID: input.processor.message.id,
     callID: options.toolCallId,
-    extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck, promptOps: input.promptOps },
+    extra: {
+      model: input.model,
+      bypassAgentCheck: input.bypassAgentCheck,
+      promptOps: input.promptOps,
+      turnID: input.budget?.id,
+    },
     agent: input.agent.name,
     messages: input.messages,
     metadata: (val) =>
@@ -163,16 +168,15 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
                     ? result.metadata.errorCode
                     : undefined)
               recordToolMetric({
-                status:
-                  errorCode === "NOT_ALLOWED"
-                    ? "denied"
-                    : errorCode === "TIMEOUT"
-                      ? "timeout"
-                      : errorCode === "CANCELLED"
-                        ? "cancelled"
-                        : errorCode
-                          ? "failed"
-                          : "success",
+                status: ["NOT_ALLOWED", "PERMISSION_DENIED", "PATH_OUTSIDE_WORKSPACE"].includes(errorCode ?? "")
+                  ? "denied"
+                  : errorCode === "TIMEOUT"
+                    ? "timeout"
+                    : errorCode === "CANCELLED"
+                      ? "cancelled"
+                      : errorCode
+                        ? "failed"
+                        : "success",
                 durationMs,
                 loopPrevented: input.budget?.loopPrevented,
                 truncated: bounded?.truncated,
@@ -184,10 +188,14 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
                 tool: item.id,
                 version: item.version ?? "1",
                 risk: item.risk ?? "READ",
-                permission: errorCode === "NOT_ALLOWED" ? "DENY" : "ALLOW",
+                permission: ["NOT_ALLOWED", "PERMISSION_DENIED", "PATH_OUTSIDE_WORKSPACE"].includes(errorCode ?? "")
+                  ? "DENY"
+                  : "ALLOW",
                 durationMs,
                 status: errorCode ? "error" : "success",
                 errorCode,
+                path: result?.metadata.path,
+                bytesChanged: result?.metadata.bytesChanged,
               })
               return output
             }
@@ -221,7 +229,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     })
   }
 
-  // Managed Qwen exposes only the bounded local READ registry. MCP/plugin tools
+  // Managed local models expose only the bounded workspace registry. MCP/plugin tools
   // below retain their normal behavior for other providers.
   if (input.model.providerID === "memory-local") return tools
 

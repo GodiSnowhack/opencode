@@ -1,0 +1,36 @@
+opencode script {
+  "channel": "memory-integration",
+  "version": "0.0.0-memory-integration-202610071139",
+  "preview": true,
+  "release": false,
+  "team": [
+    "adamdotdevin",
+    "arvsrn",
+    "Brendonovich",
+    "fwang",
+    "Hona",
+    "iamdavidhill",
+    "jayair",
+    "jlongster",
+    "kitlangton",
+    "kommander",
+    "ludvigrask",
+    "MrMushrooooom",
+    "neriousy",
+    "nexxeln",
+    "R44VC0RP",
+    "rekram1-node",
+    "thdxr",
+    "simonklee",
+    "Slickstef11",
+    "usrnk1",
+    "vimtor",
+    "StarpTech",
+    "vaprdev",
+    "actions-user",
+    "opencode",
+    "opencode-agent[bot]"
+  ]
+}
+Loaded models.dev snapshot
+Build complete

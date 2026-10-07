@@ -9,7 +9,17 @@ import { EditTool } from "./edit"
 import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
-import { ProjectInfoTool, WorkspaceListTool, WorkspaceReadTool } from "./workspace-readonly"
+import {
+  ProjectInfoTool,
+  WorkspaceListTool,
+  WorkspaceReadTool,
+  WorkspaceGlobTool,
+  WorkspaceSearchTool,
+  WorkspaceWriteTool,
+  WorkspaceEditTool,
+} from "./workspace-tools"
+import { v1WorkspaceNames } from "@opencode-ai/core/tool/workspace-operations"
+import { workspaceFilesNode } from "./workspace-tools"
 import { TaskTool } from "./task"
 import { Database } from "@opencode-ai/core/database/database"
 import { TodoWriteTool } from "./todo"
@@ -105,6 +115,10 @@ const layer = Layer.effect(
     const projectInfo = yield* ProjectInfoTool
     const workspaceList = yield* WorkspaceListTool
     const workspaceRead = yield* WorkspaceReadTool
+    const workspaceGlob = yield* WorkspaceGlobTool
+    const workspaceSearch = yield* WorkspaceSearchTool
+    const workspaceWrite = yield* WorkspaceWriteTool
+    const workspaceEdit = yield* WorkspaceEditTool
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
     const lsptool = yield* LspTool
@@ -207,8 +221,7 @@ const layer = Layer.effect(
           }
         }
 
-        if (custom.some((item) => ["project.info", "fs.list", "fs.read"].includes(item.id)))
-          throw new Error("reserved_tool_name")
+        if (custom.some((item) => v1WorkspaceNames.includes(item.id))) throw new Error("reserved_tool_name")
 
         yield* config.get()
         const questionEnabled = ["app", "cli", "desktop"].includes(flags.client) || flags.enableQuestionTool
@@ -220,6 +233,10 @@ const layer = Layer.effect(
           projectInfo: Tool.init(projectInfo),
           workspaceList: Tool.init(workspaceList),
           workspaceRead: Tool.init(workspaceRead),
+          workspaceGlob: Tool.init(workspaceGlob),
+          workspaceSearch: Tool.init(workspaceSearch),
+          workspaceWrite: Tool.init(workspaceWrite),
+          workspaceEdit: Tool.init(workspaceEdit),
           glob: Tool.init(globtool),
           grep: Tool.init(greptool),
           edit: Tool.init(edit),
@@ -246,6 +263,10 @@ const layer = Layer.effect(
             tool.projectInfo,
             tool.workspaceList,
             tool.workspaceRead,
+            tool.workspaceGlob,
+            tool.workspaceSearch,
+            tool.workspaceWrite,
+            tool.workspaceEdit,
             tool.glob,
             tool.grep,
             tool.edit,
@@ -304,9 +325,8 @@ const layer = Layer.effect(
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
       const filtered = (yield* all()).filter((tool) => {
         if (tool.availability && tool.availability !== "AVAILABLE") return false
-        if (input.providerID === "memory-local")
-          return tool.id === "project.info" || tool.id === "fs.list" || tool.id === "fs.read"
-        if (tool.id === "project.info" || tool.id === "fs.list" || tool.id === "fs.read") return false
+        if (input.providerID === "memory-local") return v1WorkspaceNames.includes(tool.id)
+        if (v1WorkspaceNames.includes(tool.id)) return false
         if (tool.id === WebSearchTool.id) {
           return webSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })
         }
@@ -452,6 +472,7 @@ export const node = LayerNode.make({
   service: Service,
   layer,
   deps: [
+    workspaceFilesNode,
     Config.node,
     Plugin.node,
     Question.node,

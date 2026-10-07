@@ -1,0 +1,30 @@
+87 |         return progress.race(promise).finally(() => clearTimeout(timer2));
+88 |       },
+89 |       signal: this._controller.signal
+90 |     };
+91 |     if (deadline) {
+92 |       const timeoutError = new import_errors.TimeoutError(`Timeout ${timeout}ms exceeded.`);
+                                ^
+TimeoutError: Timeout 60000ms exceeded.
+      at run (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\playwright-core@1.59.1\node_modules\playwright-core\lib\server\progress.js:92:28)
+      at _runCommand (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\playwright-core@1.59.1\node_modules\playwright-core\lib\server\dispatchers\dispatcher.js:91:31)
+      at dispatch (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\playwright-core@1.59.1\node_modules\playwright-core\lib\server\dispatchers\dispatcher.js:325:39)
+87 |         return progress.race(promise).finally(() => clearTimeout(timer2));
+88 |       },
+89 |       signal: this._controller.signal
+90 |     };
+91 |     if (deadline) {
+92 |       const timeoutError = new import_errors.TimeoutError(`Timeout ${timeout}ms exceeded.`);
+                                ^
+TimeoutError: Timeout 60000ms exceeded.
+      at run (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\playwright-core@1.59.1\node_modules\playwright-core\lib\server\progress.js:92:28)
+      at _runCommand (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\playwright-core@1.59.1\node_modules\playwright-core\lib\server\dispatchers\dispatcher.js:91:31)
+      at dispatch (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\playwright-core@1.59.1\node_modules\playwright-core\lib\server\dispatchers\dispatcher.js:325:39)
+EBUSY: resource busy or locked, rm 'C:\Users\shmeh\AppData\Local\Temp\opencode-onboarding-10bb7571-e700-4421-8233-efaba4d1de0d'
+    path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-onboarding-10bb7571-e700-4421-8233-efaba4d1de0d",
+ syscall: "rm",
+   errno: -16,
+    code: "EBUSY"
+
+
+Bun v1.3.14 (Windows x64)

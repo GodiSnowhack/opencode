@@ -1,0 +1,109 @@
+bun test v1.3.14 (0d9b296a)
+
+test\snapshot\snapshot.test.ts:
+[12:16:56.923] ERROR (#10828): 204 | /** @internal */
+205 | export const causePrettyError = (original, annotations) => {
+206 |   const kind = typeof original;
+207 |   let error;
+208 |   if (original && kind === "object") {
+209 |     error = new globalThis.Error(causePrettyMessage(original), {
+                                 ^
+EPERM: operation not permitted, symlink 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-a0rsw7a464m/a.txt' -> 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-a0rsw7a464m/link.txt'
+    path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-a0rsw7a464m/a.txt",
+    dest: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-a0rsw7a464m/link.txt",
+ syscall: "symlink",
+   errno: -1,
+    code: "EPERM"
+
+      at C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:209:28
+
+EPERM: operation not permitted, symlink 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-a0rsw7a464m/a.txt' -> 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-a0rsw7a464m/link.txt'
+    path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-a0rsw7a464m/a.txt",
+    dest: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-a0rsw7a464m/link.txt",
+ syscall: "symlink",
+   errno: -1,
+    code: "EPERM"
+
+(fail) symlink handling [2078.94ms]
+EPERM: operation not permitted, symlink 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-bqeoeh2fyw4/sub/dir/target.txt' -> 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-bqeoeh2fyw4/sub/dir/link.txt'
+    path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-bqeoeh2fyw4/sub/dir/target.txt",
+    dest: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-bqeoeh2fyw4/sub/dir/link.txt",
+ syscall: "symlink",
+   errno: -1,
+    code: "EPERM"
+
+[12:17:30.989] ERROR (#15962): 204 | /** @internal */
+205 | export const causePrettyError = (original, annotations) => {
+206 |   const kind = typeof original;
+207 |   let error;
+208 |   if (original && kind === "object") {
+209 |     error = new globalThis.Error(causePrettyMessage(original), {
+                                 ^
+EPERM: operation not permitted, symlink 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-bqeoeh2fyw4/sub/dir/target.txt' -> 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-bqeoeh2fyw4/sub/dir/link.txt'
+    path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-bqeoeh2fyw4/sub/dir/target.txt",
+    dest: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-bqeoeh2fyw4/sub/dir/link.txt",
+ syscall: "symlink",
+   errno: -1,
+    code: "EPERM"
+
+      at C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\node_modules\.bun\effect@4.0.0-beta.83\node_modules\effect\dist\internal\effect.js:209:28
+
+(fail) nested symlinks [2061.47ms]
+
+test\util\glob.test.ts:
+76 | 
+77 |     test("does not follow symlinks by default", async () => {
+78 |       await using tmp = await tmpdir()
+79 |       await fs.mkdir(path.join(tmp.path, "realdir"))
+80 |       await fs.writeFile(path.join(tmp.path, "realdir", "file.txt"), "", "utf-8")
+81 |       await fs.symlink(path.join(tmp.path, "realdir"), path.join(tmp.path, "linkdir"))
+                    ^
+EPERM: operation not permitted, symlink 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-kp266c02388\realdir' -> 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-kp266c02388\linkdir'
+    path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-kp266c02388\\realdir",
+    dest: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-kp266c02388\\linkdir",
+ syscall: "symlink",
+   errno: -1,
+    code: "EPERM"
+
+      at async <anonymous> (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\packages\opencode\test\util\glob.test.ts:81:16)
+(fail) Glob > scan() > does not follow symlinks by default [2.42ms]
+87 | 
+88 |     test("follows symlinks when symlink option is true", async () => {
+89 |       await using tmp = await tmpdir()
+90 |       await fs.mkdir(path.join(tmp.path, "realdir"))
+91 |       await fs.writeFile(path.join(tmp.path, "realdir", "file.txt"), "", "utf-8")
+92 |       await fs.symlink(path.join(tmp.path, "realdir"), path.join(tmp.path, "linkdir"))
+                    ^
+EPERM: operation not permitted, symlink 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-o3p1uc3381\realdir' -> 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-o3p1uc3381\linkdir'
+    path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-o3p1uc3381\\realdir",
+    dest: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-o3p1uc3381\\linkdir",
+ syscall: "symlink",
+   errno: -1,
+    code: "EPERM"
+
+      at async <anonymous> (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\packages\opencode\test\util\glob.test.ts:92:16)
+(fail) Glob > scan() > follows symlinks when symlink option is true [2.06ms]
+
+test\cli\tui\editor-context-zed.test.ts:
+79 | })
+80 | 
+81 | test("resolveZedDbPath skips candidates that cannot be stated", async () => {
+82 |   await using tmp = await tmpdir()
+83 |   const loop = path.join(tmp.path, "loop")
+84 |   await symlink(loop, loop)
+             ^
+EPERM: operation not permitted, symlink 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-sx41rz11g9k\loop' -> 'C:\Users\shmeh\AppData\Local\Temp\opencode-test-sx41rz11g9k\loop'
+    path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-sx41rz11g9k\\loop",
+    dest: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-sx41rz11g9k\\loop",
+ syscall: "symlink",
+   errno: -1,
+    code: "EPERM"
+
+      at async <anonymous> (C:\Users\shmeh\Desktop\PET PROJECT\OpenCode-Memory\opencode-custom\packages\opencode\test\cli\tui\editor-context-zed.test.ts:84:9)
+(fail) resolveZedDbPath skips candidates that cannot be stated [1.57ms]
+
+ 172 pass
+ 3 skip
+ 5 fail
+ 1018 expect() calls
+Ran 180 tests across 4 files. [183.20s]

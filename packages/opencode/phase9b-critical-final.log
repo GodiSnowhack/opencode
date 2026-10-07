@@ -1,0 +1,110 @@
+bun test v1.3.14 (0d9b296a)
+
+test\session\llm.test.ts:
+[12:03:53.150] INFO (#107499): stream {
+  providerID: "openai",
+  modelID: "gpt-5.2",
+  "session.id": "session-test-native-flag-off",
+  small: "false",
+  agent: "test",
+  mode: "primary",
+}
+[12:03:53.153] INFO (#107621): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\config.json",
+}
+[12:03:53.153] INFO (#107621): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\opencode.json",
+}
+[12:03:53.154] INFO (#107621): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\opencode.jsonc",
+}
+[12:03:53.161] INFO (#107621): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-47bihi5bs4z\\opencode.json",
+}
+[12:03:53.346] INFO (#107499): llm runtime selected {
+  "llm.runtime": "ai-sdk",
+  "llm.provider": "openai",
+  "llm.model": "gpt-5.2",
+}
+[12:03:53.581] INFO (#108537): stream {
+  providerID: "openai",
+  modelID: "gpt-5.2",
+  "session.id": "session-test-native",
+  small: "false",
+  agent: "test",
+  mode: "primary",
+}
+[12:03:53.589] INFO (#108660): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\config.json",
+}
+[12:03:53.590] INFO (#108660): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\opencode.json",
+}
+[12:03:53.590] INFO (#108660): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\opencode.jsonc",
+}
+[12:03:53.592] INFO (#108660): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-t7fnnm6ehqh\\opencode.json",
+}
+[12:03:53.801] INFO (#108537): llm runtime selected {
+  "llm.runtime": "native",
+  "llm.provider": "openai",
+  "llm.model": "gpt-5.2",
+}
+[12:03:54.024] INFO (#109581): stream {
+  providerID: "openai",
+  modelID: "gpt-5.2",
+  "session.id": "session-test-native-injected-tool",
+  small: "false",
+  agent: "test",
+  mode: "primary",
+}
+[12:03:54.024] INFO (#109704): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\config.json",
+}
+[12:03:54.024] INFO (#109704): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\opencode.json",
+}
+[12:03:54.025] INFO (#109704): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\opencode.jsonc",
+}
+[12:03:54.042] INFO (#109704): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-15nixcohrb8\\opencode.json",
+}
+[12:03:54.231] INFO (#109581): llm runtime selected {
+  "llm.runtime": "native",
+  "llm.provider": "openai",
+  "llm.model": "gpt-5.2",
+}
+[12:03:54.463] INFO (#110625): stream {
+  providerID: "openai",
+  modelID: "gpt-5.2",
+  "session.id": "session-test-native-tool",
+  small: "false",
+  agent: "test",
+  mode: "primary",
+}
+[12:03:54.464] INFO (#110748): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\config.json",
+}
+[12:03:54.464] INFO (#110748): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\opencode.json",
+}
+[12:03:54.464] INFO (#110748): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-data-30068\\config\\opencode\\opencode.jsonc",
+}
+[12:03:54.466] INFO (#110748): loading {
+  path: "C:\\Users\\shmeh\\AppData\\Local\\Temp\\opencode-test-aw7cpadi2xg\\opencode.json",
+}
+[12:03:54.682] INFO (#110625): llm runtime selected {
+  "llm.runtime": "native",
+  "llm.provider": "openai",
+  "llm.model": "gpt-5.2",
+}
+
+ 1675 pass
+ 20 skip
+ 1 todo
+ 0 fail
+ 16 snapshots, 4042 expect() calls
+Ran 1696 tests across 52 files. [251.87s]

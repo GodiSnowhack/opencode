@@ -1,75 +1,69 @@
-# Phase 9A Tool Runtime
+# Phase 9B — Managed Files / Search / Edit
 
-## Architecture
+## Architecture and audit
 
-The packaged Desktop uses OpenCode's existing V1 `SessionPrompt` multi-step loop, AI SDK tool protocol, `SessionProcessor`, and `SessionTools.resolve`. The managed `memory-local` provider receives only the three read-only tools below. Other providers retain their existing tool catalog. No new Ollama adapter is needed: structured `tool_calls`, tool results, and continuation already pass through Gateway.
+Desktop uses V1 SessionPrompt/SessionTools/SessionProcessor; V2 uses canonical Core Tool.make, Tools.Service, ToolRegistry and SessionRunner. Existing tool calls/results/continuation, permissions, Ripgrep and tool cards are reused. No new transport, provider adapter, executable registry or permission UI was added.
 
-## Registry
+Native Read/List/Glob/Grep/Edit/Write/Patch remain available to ordinary providers. V1 native Edit/Write write directly. V2 mutations guard changes after permission approval but do not require an earlier read revision. These implementations do not satisfy the combined atomic-write/read-to-edit contract. Managed-only leaves therefore share WorkspaceFiles policy and workspaceOperation.
 
-`ToolRegistry` initializes the three tools through `Tool.define`/`Tool.init`. Each definition has an ID, version, category, risk, permission, availability, timeout, and cancellability. Reserved names cannot be replaced by plugin tools. Agent Tools applies only to the managed local provider or a model routed through the configured local Memory Gateway. OFF removes every model-visible tool schema in both V1 and V2, regardless of Build/Plan mode; other providers keep their normal permission-filtered catalog. ON restores the existing permitted catalog.
+## Catalog
 
-## Execution Context
+| V1           | V2           | Operation                         | Permission   |
+| ------------ | ------------ | --------------------------------- | ------------ |
+| project.info | project_info | Safe directory label/capabilities | read catalog |
+| fs.list      | fs_list      | Bounded directory list            | read         |
+| fs.read      | fs_read      | UTF-8 page and trusted revision   | read         |
+| fs.glob      | fs_glob      | Native Ripgrep filename glob      | glob         |
+| fs.search    | fs_search    | Native Ripgrep text search        | grep         |
+| fs.write     | fs_write     | Explicit create or full replace   | edit         |
+| fs.edit      | fs_edit      | Exact replacement                 | edit         |
 
-The model supplies validated arguments, never the workspace root, project identity, session identity, or permission decision. `InstanceState` supplies the workspace, and `MemoryGateway.effectiveProjectID` supplies the canonical project ID for audit. One `ToolTurnBudget` is created for each user turn and shared by all continuation steps.
+V2 names prohibit dots; underscore names have identical contracts. V1 reserved names cannot be replaced by plugins. Managed providers receive only this catalog; ordinary providers retain native tools. No model ID special case exists.
 
-## Permissions
+Agent Tools OFF removes every executable schema on the managed provider/configured Gateway route, regardless of Build/Plan. Managed models without tool capability receive no schemas. ON restores the permission-filtered catalog. V2 refuses managed calls that were not advertised, without starting continuation. V1 excludes MCP/plugins from managed exposure.
 
-The existing OpenCode `Permission.Service` evaluates `read` with agent and session rules. Its trusted UI/config path can ASK or DENY. Tool arguments such as `approved` have no authority. The native reader receives an already approved request without a second prompt. No renderer API for arbitrary execution or filesystem access was added.
+## Workspace security
 
-## Risk Classes
+The runtime supplies workspace/session/stable turn identity. Model arguments supply relative names only. Canonical root is pinned on first use. Reject absolute Windows/Unix paths, drive-relative prefixes, UNC/device paths, ADS colons, traversal, NUL, reserved Windows names and trailing dot/space aliases. Realpath validates existing targets and immediate create parents. Symlink/junction escape, including a parent changed during a permission prompt, is denied. Outside access has no approval override.
 
-The registry supports READ, SAFE_WRITE, DESTRUCTIVE, and EXTERNAL_ACTION metadata. Phase 9A exposes READ only. Future action tools require separate policy and implementation.
+UTF-8 only: reject invalid UTF-8, NUL/control bytes and known binary extensions; retain BOM and source line endings for exact edits. Search never follows symlinks, filters binary/oversized/non-UTF-8 results and revalidates disclosed paths. No shell, executable, Git, browser, delete/move or binary mutation is exposed.
 
-## Validation
+## Write/edit, revision and atomicity
 
-`Tool.init` validates the existing Effect Schema before each handler. `project.info` takes no arguments; `fs.list` accepts a relative path and a limit from 1 to 100; `fs.read` accepts a relative path, start line, and up to 200 lines. Invalid input is reported as `INVALID_ARGUMENT`.
+write defaults to mode=create and never overwrites. mode=replace requires a prior trusted read in the same session. edit requires exact oldString/newString; no match fails, ambiguous match requires explicit replaceAll. Parents must exist. Model-supplied expectedHash cannot substitute for a trusted read. Revisions are keyed by session/canonical filename and checked before permission and again before commit; stale files require rereading.
 
-## Error Contract
+Commit validates a complete plan, requests existing edit permission, creates an exclusive random temporary sibling, writes, flushes and closes, revalidates path/revision, then commits. Replacement uses same-directory rename; creation uses an atomic exclusive hard link plus temporary-name cleanup to prevent overwriting a concurrent winner. IO failure before replacement preserves the original. Cooperating commits serialize per canonical target. Unsupported filesystems fail without non-atomic fallback. Single-file atomicity does not imply a multi-file transaction.
 
-Model-facing failures use codes `INVALID_ARGUMENT`, `NOT_ALLOWED`, `NOT_FOUND`, `UNAVAILABLE`, `TIMEOUT`, `CANCELLED`, `RESULT_TOO_LARGE`, and `EXECUTION_FAILED`. Raw filesystem errors and stack traces are not returned as the primary result.
+Existing permissions decide ALLOW/ASK/DENY. Plan/read-only edit denial hides mutation definitions and remains enforced at invocation. Permission UI receives a bounded relative-filename diff preview with previewTruncated for long files. This does not change full revision checks. Denial causes no write; approved/root/session arguments have no authority.
 
-## Timeouts
+## Limits and cancellation
 
-Each managed tool invocation has a 10-second timeout. The turn stops executing tools after 60 seconds of cumulative execution.
+| Limit                                      | Value                            |
+| ------------------------------------------ | -------------------------------- |
+| UTF-8 read/write file                      | 512 KiB                          |
+| Exact edit old/new patch bytes             | 128 KiB                          |
+| Write bytes / distinct files per user turn | 2 MiB / 8                        |
+| Read page                                  | 200 lines                        |
+| List/glob/search results                   | 100                              |
+| Search match preview                       | 500 characters                   |
+| Tool timeout / cumulative execution        | 10 seconds / 60 seconds          |
+| Calls per turn                             | Desktop setting 1–24; default 12 |
+| Managed result / turn output               | 16 KiB / 64 KiB                  |
 
-## Cancellation
+Failed write attempts consume budget. Reservations occur before async IO, including concurrent distinct-file writes. ToolTurnBudget was moved to Core and reexported from V1. V2 shares it across continuation and resets on a new user turn. Two identical results trigger loop prevention. Canonical ToolRegistry retains V2 generic output bounding/retention; runner budgets add turn-wide enforcement.
 
-The tool races execution against the caller's AbortSignal. Cancelling the user turn interrupts the active Effect and prevents further execution. Native file reading remains bounded and receives the existing context signal.
+Cancellation interrupts Effect, aborts Ripgrep and checks IO AbortSignal before commit. Issued OS syscalls cannot be undone. Node lacks directory-handle-relative compare-and-swap rename: a hostile external process racing the final check/syscall is not fully excluded. This is a local workspace guard, not an OS sandbox. Normal external-editor changes and junction swaps before approval completes are detected.
 
-## Budgets
+## Results, UI and audit
 
-Default: 12 calls per turn; configurable from 1 to 24 in Desktop settings. Each result is limited to 16 KiB and the turn to 64 KiB of tool output.
+Write/edit return compact operation/path/changed/bytes/oldHash/hash JSON. Stable errors: PATH_OUTSIDE_WORKSPACE, PERMISSION_DENIED, FILE_NOT_FOUND, FILE_ALREADY_EXISTS, FILE_CHANGED_SINCE_READ, AMBIGUOUS_EDIT, NO_MATCH, UNSUPPORTED_BINARY_FILE, FILE_TOO_LARGE, WRITE_LIMIT_EXCEEDED, TIMEOUT, CANCELLED; invalid arguments/IO failures use existing structured failure semantics.
 
-## Loop Prevention
+Both naming variants use existing BasicTool cards and localized native action labels, existing pending/running/completed/error messages, and expandable bounded results. No Files panel or renderer filesystem bridge was added.
 
-A normalized tool name and argument object plus SHA-256 of the result identify repeated calls. After two identical outcomes, the next identical invocation is denied. After two denied calls, or when the call/time budget is exhausted, the next model step has no tool schemas and must finish without more tool calls.
+V1 invocation audit adds canonical relative path/bytes changed. V2 leaves log the same content-free fields; runner logs correlated settlement/budget/timeout events. Audit excludes file content, old/new strings, diff previews and arbitrary arguments. Permission previews are separate trusted UI data.
 
-## Audit
+## Memory provenance and acceptance
 
-Each managed invocation logs a timestamped structured event with invocation, session, canonical project, tool/version, risk, permission decision, duration, status, and error code. File content, arguments, paths, and secrets are omitted.
+File results keep the tool role in continuation/history. “User prefers Electron” or “Запомни…” inside a file cannot become a real user confirmation. Gateway/worker requires user evidence. Phase 1 identity, injection and worker configuration stay unchanged. Tests cover fork role preservation and existing backend rejection of file-only preference evidence.
 
-## Metrics
-
-In-process counters track total, success, failure, denial, timeout, cancellation, loop prevention, truncation, and cumulative duration. They have no path, session, project, or filename labels.
-
-## Workspace Security
-
-`fs.list` and `fs.read` accept relative names only. Windows/Unix absolute paths, drive prefixes, UNC paths, traversal, and NUL are rejected. The trusted root and target are canonicalized, so symlinks and junctions outside the workspace are denied. Native `ReadTool` handles binary detection, bounded text, and UTF-8. Output does not contain the full local workspace path.
-
-## Memory Interaction
-
-Gateway injection remains request-local and uses one cached memory block per stateless continuation request. It does not enter Raw History as a new user message. Existing worker admission requires user evidence for user preference/fact/decision types; tool output alone cannot confirm a user preference.
-
-## Ollama/Qwen Compatibility
-
-The existing OpenAI-compatible Gateway passes tool schemas, structured Qwen tool calls, and tool result messages. The Desktop managed provider is gated by Agent Tools. Phase 9A automated tests cover the OpenCode runtime and existing Gateway continuation contract; live Desktop/Qwen user acceptance remains required.
-
-## How to Add a Tool
-
-Define an Effect Schema and `Tool.define` handler; register it in `ToolRegistry`; set metadata and trusted permissions; bound result and timeout; add focused security and continuation tests. Only expose a new risk class after its approval policy and audit are designed.
-
-## Security Boundaries
-
-Renderer settings only update narrow typed options. Filesystem access stays in the OpenCode sidecar. Phase 9A does not add write, shell, HTTP, browser, or generated tools.
-
-In Desktop dev mode the V1 sidecar refresh completes before the Agent Tools settings call returns, so the next turn sees the new value. The experimental V2 background service does not support this live refresh; the settings UI reports that its service must be restarted before the new value takes effect.
+See PHASE9B_PLAN.md for exact targeted results and PHASE9B_ACCEPTANCE.md for isolated live steps. Live generations, packaged installer and full monorepo checks were not run. No commit/push.
