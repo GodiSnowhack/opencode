@@ -26,6 +26,7 @@ import { SkillGuidance } from "../../skill/guidance"
 import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
 import { v2WorkspaceNames } from "../../tool/workspace-operations"
+import { v2ExecutionNames, executionTimeout, Runtime, runtimeNode } from "../../tool/execution-tools"
 import { ToolTurnBudget, configuredMaxToolCalls, executeBounded } from "../../tool/turn-budget"
 import { ToolOutputStore } from "../../tool-output-store"
 import { SessionContextEpoch } from "../context-epoch"
@@ -102,6 +103,7 @@ const layer = Layer.effect(
     const catalog = yield* Catalog.Service
     const agents = yield* AgentV2.Service
     const tools = yield* ToolRegistry.Service
+    const execution = yield* Runtime
     const models = yield* SessionRunnerModel.Service
     const store = yield* SessionStore.Service
     const location = yield* Location.Service
@@ -230,8 +232,8 @@ const layer = Layer.effect(
       const definitions =
         toolMaterialization?.definitions.filter((tool) =>
           model.provider === "memory-local"
-            ? v2WorkspaceNames.includes(tool.name)
-            : !v2WorkspaceNames.includes(tool.name),
+            ? [...v2WorkspaceNames, ...v2ExecutionNames].includes(tool.name)
+            : ![...v2WorkspaceNames, ...v2ExecutionNames].includes(tool.name),
         ) ?? []
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
@@ -335,7 +337,7 @@ const layer = Layer.effect(
                     call: event,
                   })
                   if (model.provider !== "memory-local") return yield* execution
-                  const settlement = yield* executeBounded(execution, undefined).pipe(
+                  const settlement = yield* executeBounded(execution, undefined, executionTimeout(event.name)).pipe(
                     Effect.catch((error) =>
                       Cause.isTimeoutError(error) || error === "CANCELLED"
                         ? Effect.succeed({
@@ -523,7 +525,7 @@ const layer = Layer.effect(
     })
 
     return Service.of({
-      run,
+      run: (input) => run(input).pipe(Effect.onInterrupt(() => execution.stopSession(input.sessionID))),
     })
   }),
 )
@@ -536,6 +538,7 @@ export const node = makeLocationNode({
     llmClient,
     AgentV2.node,
     ToolRegistry.node,
+    runtimeNode,
     SessionRunnerModel.node,
     Catalog.node,
     SessionStore.node,

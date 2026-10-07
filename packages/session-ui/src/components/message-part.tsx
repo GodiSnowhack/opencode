@@ -1511,8 +1511,10 @@ const WorkspaceToolCard: ToolComponent = (props) => {
       icon={info().icon}
       trigger={{ title: info().title, subtitle: info().subtitle }}
     >
-      <Show when={props.output}>
-        <pre class="min-w-0 max-h-80 overflow-y-auto whitespace-pre-wrap break-all text-12-regular">{props.output}</pre>
+      <Show when={props.output || props.metadata.output}>
+        <pre class="min-w-0 max-h-80 overflow-y-auto whitespace-pre-wrap break-all text-12-regular">
+          {props.output || props.metadata.output}
+        </pre>
       </Show>
     </BasicTool>
   )
@@ -1533,6 +1535,16 @@ for (const name of [
   "fs_write",
   "fs.edit",
   "fs_edit",
+  "shell.exec",
+  "shell_exec",
+  "test.run",
+  "test_run",
+  "process.start",
+  "process_start",
+  "process.status",
+  "process_status",
+  "process.stop",
+  "process_stop",
 ])
   ToolRegistry.register({ name, render: WorkspaceToolCard })
 

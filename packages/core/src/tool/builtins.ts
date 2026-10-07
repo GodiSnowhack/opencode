@@ -15,6 +15,7 @@ import { WebFetchTool } from "./webfetch"
 import { WebSearchTool } from "./websearch"
 import { WriteTool } from "./write"
 import { ManagedWorkspaceTools } from "./managed-workspace"
+import { ManagedExecutionTools } from "./execution-tools"
 
 /**
  * Composes only the shipped Location-scoped built-in tool transforms.
@@ -34,6 +35,7 @@ export const node = makeLocationNode({
   layer: Layer.empty,
   deps: [
     ManagedWorkspaceTools.node,
+    ManagedExecutionTools.node,
     ApplyPatchTool.node,
     BashTool.node,
     EditTool.node,

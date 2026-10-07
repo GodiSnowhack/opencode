@@ -15,6 +15,19 @@ test("managed V1 and V2 tools reuse native localized actions", () => {
   }
   expect(workspaceToolAction("bash")).toBeUndefined()
   expect(workspaceToolAction("plugin.file")).toBeUndefined()
+  for (const name of [
+    "shell.exec",
+    "shell_exec",
+    "test.run",
+    "test_run",
+    "process.start",
+    "process_start",
+    "process.status",
+    "process_status",
+    "process.stop",
+    "process_stop",
+  ])
+    expect(workspaceToolAction(name)).toBe("bash")
 })
 test("structured workspace errors appear as errors while pending/running/success remain unchanged", () => {
   expect(workspaceToolStatus("completed", '{"ok":false,"code":"PERMISSION_DENIED"}')).toBe("error")

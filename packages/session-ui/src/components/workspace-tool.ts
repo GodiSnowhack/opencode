@@ -1,5 +1,15 @@
 // Presentation aliases only; execution stays in the canonical runtime registries.
 const actions: Record<string, string> = {
+  "shell.exec": "bash",
+  shell_exec: "bash",
+  "test.run": "bash",
+  test_run: "bash",
+  "process.start": "bash",
+  process_start: "bash",
+  "process.status": "bash",
+  process_status: "bash",
+  "process.stop": "bash",
+  process_stop: "bash",
   "project.info": "list",
   project_info: "list",
   "fs.list": "list",

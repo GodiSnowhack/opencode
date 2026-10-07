@@ -18,6 +18,7 @@ import { Instruction } from "./instruction"
 import { Plugin } from "../plugin"
 import { MAX_STEPS_PROMPT } from "@opencode-ai/core/session/runner/max-steps"
 import { ToolRegistry } from "@/tool/registry"
+import { executionSessionCleanup, executionNode } from "@/tool/execution-tools"
 import { ToolTurnBudget, configuredMaxToolCalls } from "@/tool/turn-budget"
 import { MCP } from "../mcp"
 import { LSP } from "@/lsp/lsp"
@@ -128,6 +129,7 @@ const layer = Layer.effect(
     const mcp = yield* MCP.Service
     const lsp = yield* LSP.Service
     const registry = yield* ToolRegistry.Service
+    const stopExecution = yield* executionSessionCleanup
     const truncate = yield* Truncate.Service
     const image = yield* Image.Service
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
@@ -153,6 +155,7 @@ const layer = Layer.effect(
     const cancel = Effect.fn("SessionPrompt.cancel")(function* (sessionID: SessionID) {
       yield* Effect.logInfo("cancel", { "session.id": sessionID })
       yield* state.cancel(sessionID)
+      yield* stopExecution(sessionID)
     })
 
     const resolvePromptParts = Effect.fn("SessionPrompt.resolvePromptParts")(function* (template: string) {
@@ -1621,6 +1624,7 @@ export const node = LayerNode.make({
     MCP.node,
     LSP.node,
     ToolRegistry.node,
+    executionNode,
     Truncate.node,
     Image.node,
     CrossSpawnSpawner.node,

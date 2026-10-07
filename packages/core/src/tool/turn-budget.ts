@@ -98,7 +98,10 @@ export class ToolTurnBudget {
   finish(name: string, args: unknown, output: string, durationMs: number) {
     this.elapsed += durationMs
     const key = `${name}:${JSON.stringify(normalized(args))}`
-    const digest = createHash("sha256").update(output).digest("hex")
+    // Owned handles and duration change on every invocation; compare executable results,
+    // not incidental identity, when detecting an unchanged command/failure loop.
+    const stable = /^(shell[._]exec|test[._]run)$/.test(name) ? executionResultIdentity(output) : output
+    const digest = createHash("sha256").update(stable).digest("hex")
     const old = this.previous.get(key)
     this.previous.set(key, { result: digest, repeats: old?.result === digest ? old.repeats + 1 : 1 })
     const originalBytes = Buffer.byteLength(output, "utf8")
@@ -117,6 +120,18 @@ export class ToolTurnBudget {
       truncated: true,
       originalBytes,
     }
+  }
+}
+
+function executionResultIdentity(output: string) {
+  try {
+    const result: unknown = JSON.parse(output)
+    if (!result || typeof result !== "object" || Array.isArray(result)) return output
+    return JSON.stringify(
+      Object.fromEntries(Object.entries(result).filter(([key]) => key !== "processId" && key !== "durationMs")),
+    )
+  } catch {
+    return output
   }
 }
 

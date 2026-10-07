@@ -221,7 +221,9 @@ export function disabled(tools: string[], ruleset: PermissionV1.Ruleset): Set<st
             ? "glob"
             : tool === "fs.search"
               ? "grep"
-              : tool
+              : ["shell.exec", "test.run", "process.start", "process.status", "process.stop"].includes(tool)
+                ? "bash"
+                : tool
       const rule = ruleset.findLast((rule) => Wildcard.match(permission, rule.permission))
       return rule?.pattern === "*" && rule.action === "deny"
     }),
