@@ -103,6 +103,23 @@ function waitForRequest() {
 }
 
 describe("PermissionV2", () => {
+  it.effect("managed Git mandatory approval overrides allow but never deny", () =>
+    Effect.gen(function* () {
+      yield* setup([{ action: "bash", resource: "*", effect: "allow" }])
+      const service = yield* PermissionV2.Service
+      const input = assertion({
+        action: "bash",
+        resources: ["git.push"],
+        metadata: { requireApproval: true, remote: "origin", branch: "main" },
+      })
+      expect(yield* service.ask(input)).toMatchObject({ effect: "ask" })
+      expect((yield* service.list())[0]?.metadata).toMatchObject({ requireApproval: true, remote: "origin" })
+      yield* service.reply({ requestID: input.id, reply: "once" })
+      yield* setRules([{ action: "bash", resource: "*", effect: "deny" }])
+      expect(yield* service.ask(input)).toMatchObject({ effect: "deny" })
+      expect(yield* service.list()).toHaveLength(0)
+    }),
+  )
   it.effect("returns the evaluated effect and only queues prompts", () =>
     Effect.gen(function* () {
       yield* setup([{ action: "read", resource: "*", effect: "allow" }])

@@ -15,6 +15,14 @@ const permission = (sessionID: string) =>
   }) as Pick<PermissionRequest, "sessionID">
 
 describe("autoRespondsPermission", () => {
+  test.each(["session", "parent", "directory"])("mandatory Git approval blocks %s auto-accept", (mode) => {
+    const directory = "/tmp/project"
+    const sessions = [session({ id: "root" }), session({ id: "child", parentID: "root" })]
+    const key = mode === "session" ? "child" : mode === "parent" ? "root" : `${base64Encode(directory)}/*`
+    const request = { sessionID: "child", metadata: { requireApproval: true, operation: "push" } }
+    expect(autoRespondsPermission({ [key]: true }, sessions, request, directory)).toBe(false)
+    expect(sessionAutoAccept({ [key]: true }, sessions, request, directory)).toBe(false)
+  })
   test("uses a parent session's directory-scoped auto-accept", () => {
     const directory = "/tmp/project"
     const sessions = [session({ id: "root" }), session({ id: "child", parentID: "root" })]

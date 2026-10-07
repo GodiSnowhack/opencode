@@ -25,6 +25,27 @@ const actions: Record<string, string> = {
   "fs.edit": "edit",
   fs_edit: "edit",
 }
+export const gitToolKinds = [
+  "status",
+  "diff",
+  "log",
+  "branch.list",
+  "branch.create",
+  "branch.switch",
+  "stage",
+  "unstage",
+  "commit",
+  "restore",
+  "remote.list",
+  "fetch",
+  "push",
+]
+for (const kind of gitToolKinds) {
+  actions[`git.${kind}`] = "git"
+  actions[`git_${kind.replaceAll(".", "_")}`] = "git"
+}
+export const gitToolKind = (name: string) =>
+  gitToolKinds.find((kind) => name === `git.${kind}` || name === `git_${kind.replaceAll(".", "_")}`)
 export const workspaceToolAction = (name: string) => actions[name]
 
 export function workspaceToolStatus(status?: string, output?: string, errorCode?: unknown) {

@@ -14,7 +14,7 @@ const id = (value: string) => SessionMessage.ID.make(`msg_${value}`)
 const model = Model.make({ id: "model", provider: "provider", route: OpenAIChat.route })
 
 describe("toLLMMessages", () => {
-  test.each(["fs_read", "shell_exec", "test_run", "process_status"])(
+  test.each(["fs_read", "shell_exec", "test_run", "process_status", "git_log", "git_commit", "git_diff"])(
     "%s result remains tool provenance, never a user preference or confirmation",
     (name) => {
       const messages = toLLMMessages(

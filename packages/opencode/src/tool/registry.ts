@@ -29,6 +29,8 @@ import {
   executionNode,
 } from "./execution-tools"
 import { v1ExecutionNames } from "@opencode-ai/core/tool/execution-tools"
+import { v1GitNames } from "@opencode-ai/core/tool/managed-git"
+import { gitTools, gitNode } from "./git-tools"
 import { TaskTool } from "./task"
 import { Database } from "@opencode-ai/core/database/database"
 import { TodoWriteTool } from "./todo"
@@ -133,6 +135,7 @@ const layer = Layer.effect(
     const processStart = yield* ProcessStartTool
     const processStatus = yield* ProcessStatusTool
     const processStop = yield* ProcessStopTool
+    const gitLeaves = yield* Effect.all(gitTools)
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
     const lsptool = yield* LspTool
@@ -235,7 +238,7 @@ const layer = Layer.effect(
           }
         }
 
-        if (custom.some((item) => [...v1WorkspaceNames, ...v1ExecutionNames].includes(item.id)))
+        if (custom.some((item) => [...v1WorkspaceNames, ...v1ExecutionNames, ...v1GitNames].includes(item.id)))
           throw new Error("reserved_tool_name")
 
         yield* config.get()
@@ -292,6 +295,7 @@ const layer = Layer.effect(
             tool.processStart,
             tool.processStatus,
             tool.processStop,
+            ...(yield* Effect.all(gitLeaves.map((leaf) => Tool.init(leaf)))),
             tool.glob,
             tool.grep,
             tool.edit,
@@ -350,8 +354,9 @@ const layer = Layer.effect(
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
       const filtered = (yield* all()).filter((tool) => {
         if (tool.availability && tool.availability !== "AVAILABLE") return false
-        if (input.providerID === "memory-local") return [...v1WorkspaceNames, ...v1ExecutionNames].includes(tool.id)
-        if ([...v1WorkspaceNames, ...v1ExecutionNames].includes(tool.id)) return false
+        if (input.providerID === "memory-local")
+          return [...v1WorkspaceNames, ...v1ExecutionNames, ...v1GitNames].includes(tool.id)
+        if ([...v1WorkspaceNames, ...v1ExecutionNames, ...v1GitNames].includes(tool.id)) return false
         if (tool.id === WebSearchTool.id) {
           return webSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })
         }
@@ -499,6 +504,7 @@ export const node = LayerNode.make({
   deps: [
     workspaceFilesNode,
     executionNode,
+    gitNode,
     Config.node,
     Plugin.node,
     Question.node,

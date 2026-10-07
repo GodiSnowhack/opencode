@@ -2,6 +2,7 @@ import path from "node:path"
 import { createHash, randomUUID } from "node:crypto"
 import fs, { link, lstat, open, realpath, unlink } from "node:fs/promises"
 import { constants } from "node:fs"
+import { recordGitWrite } from "./git-ownership"
 
 export const FILE_BYTES = 512 * 1024
 export const PATCH_BYTES = 128 * 1024
@@ -198,6 +199,12 @@ export class WorkspaceFiles {
     cancelled(signal)
     const relative = input.path ?? ""
     const target = await this.resolve(relative, operation === "write")
+    if (
+      [relative, path.relative(await this.rootPath(), target)].some((item) =>
+        item.split(/[\\/]/u).some((part) => part.toLowerCase() === ".git"),
+      )
+    )
+      return fail("PERMISSION_DENIED")
     const info = await lstat(target).catch(() => undefined)
     if (info?.isSymbolicLink()) return fail("PATH_OUTSIDE_WORKSPACE")
     if (operation === "write" && (input.mode ?? "create") === "create" && info) return fail("FILE_ALREADY_EXISTS")
@@ -310,6 +317,7 @@ export class WorkspaceFiles {
           await unlink(temporary).catch(() => undefined)
       }
       const hash = contentHash(plan.after)
+      recordGitWrite(session, plan.target, plan.before, plan.after)
       bounded(this.revisions, `${session}:${plan.target}`, hash, 1024)
       return {
         ok: true,

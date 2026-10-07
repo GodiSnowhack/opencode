@@ -40,7 +40,7 @@ function sessionLineage(session: { id: string; parentID?: string }[], sessionID:
 export function autoRespondsPermission(
   autoAccept: Record<string, boolean>,
   session: { id: string; parentID?: string }[],
-  permission: { sessionID: string },
+  permission: { sessionID: string; metadata?: Record<string, unknown> },
   directory?: string,
 ) {
   const value = sessionAutoAccept(autoAccept, session, permission, directory)
@@ -51,9 +51,10 @@ export function autoRespondsPermission(
 export function sessionAutoAccept(
   autoAccept: Record<string, boolean>,
   session: { id: string; parentID?: string }[],
-  permission: { sessionID: string },
+  permission: { sessionID: string; metadata?: Record<string, unknown> },
   directory?: string,
 ) {
+  if (permission.metadata?.requireApproval === true) return false
   return sessionLineage(session, permission.sessionID)
     .map((id) => accepted(autoAccept, id, directory))
     .find((item): item is boolean => item !== undefined)

@@ -158,7 +158,10 @@ const layer = Layer.effect(
       const all = [...rules, ...(yield* savedRules())]
       const effects = input.resources.map((resource) => evaluate(input.action, resource, all).effect)
       const effect: Permission.Effect = effects.includes("deny") ? "deny" : effects.includes("ask") ? "ask" : "allow"
-      return { effect, rules: all }
+      return {
+        effect: effect === "allow" && input.metadata?.requireApproval === true ? ("ask" as const) : effect,
+        rules: all,
+      }
     })
 
     function request(input: AssertInput): Request {

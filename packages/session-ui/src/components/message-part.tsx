@@ -36,7 +36,7 @@ import { useFileComponent } from "@opencode-ai/ui/context/file"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { type UiI18n, useI18n } from "@opencode-ai/ui/context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
-import { workspaceToolAction, workspaceToolStatus } from "./workspace-tool"
+import { workspaceToolAction, workspaceToolStatus, gitToolKind, gitToolKinds } from "./workspace-tool"
 import { Accordion } from "@opencode-ai/ui/accordion"
 import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
@@ -473,6 +473,13 @@ export function getToolInfo(
   metadata: Record<string, unknown> | undefined = {},
 ): ToolInfo {
   const i18n = useI18n()
+  const gitKind = gitToolKind(tool)
+  if (gitKind)
+    return {
+      icon: "code",
+      title: i18n.t(`ui.tool.git.${gitKind}`),
+      subtitle: input.branch || input.paths?.join(", ") || input.remote,
+    }
   const action = workspaceToolAction(tool)
   if (action) {
     tool = action
@@ -1545,6 +1552,7 @@ for (const name of [
   "process_status",
   "process.stop",
   "process_stop",
+  ...gitToolKinds.flatMap((kind) => [`git.${kind}`, `git_${kind.replaceAll(".", "_")}`]),
 ])
   ToolRegistry.register({ name, render: WorkspaceToolCard })
 

@@ -67,10 +67,14 @@ const layer = Layer.effect(
     const ask = Effect.fn("Permission.ask")(function* (input: PermissionV1.AskInput) {
       const { approved, pending } = yield* InstanceState.get(state)
       const { ruleset, ...request } = input
-      let needsAsk = false
+      let needsAsk = request.metadata.requireApproval === true
 
       for (const pattern of request.patterns) {
-        const rule = evaluate(request.permission, pattern, ruleset, approved)
+        const configured = evaluate(request.permission, pattern, ruleset)
+        const rule =
+          request.metadata.requireApproval === true && configured.action === "deny"
+            ? configured
+            : evaluate(request.permission, pattern, ruleset, approved)
         yield* Effect.logInfo("evaluated", { permission: request.permission, pattern, action: rule })
         if (rule.action === "deny") {
           return yield* new PermissionV1.DeniedError({
@@ -223,7 +227,11 @@ export function disabled(tools: string[], ruleset: PermissionV1.Ruleset): Set<st
               ? "grep"
               : ["shell.exec", "test.run", "process.start", "process.status", "process.stop"].includes(tool)
                 ? "bash"
-                : tool
+                : tool.startsWith("git.")
+                  ? ["git.status", "git.diff", "git.log", "git.branch.list", "git.remote.list"].includes(tool)
+                    ? "read"
+                    : "bash"
+                  : tool
       const rule = ruleset.findLast((rule) => Wildcard.match(permission, rule.permission))
       return rule?.pattern === "*" && rule.action === "deny"
     }),

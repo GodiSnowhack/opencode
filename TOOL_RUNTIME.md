@@ -109,3 +109,13 @@ No model-controlled environment. Inherited credentials are usable by approved co
 5. Broad suites only with an explained technical reason.
 
 Prefer fs.edit/fs.write for normal text changes. Use shell for tests/builds/scripts and explicit process.start for dev servers. A failed command must not be reported as PASS.
+
+# Phase 9D Git tools
+
+Managed V1 exposes `git.status`, `git.diff`, `git.log`, `git.branch.list/create/switch`, `git.stage`, `git.unstage`, `git.commit`, `git.restore`, `git.remote.list`, `git.fetch`, and `git.push`; V2 uses underscore aliases. They reuse upstream Git discovery/history and AppProcess argv execution. Shell Git stays denied.
+
+Use selected-path `git.diff` and pass its session-bound `reviewId` to stage/restore. Before commit, obtain a fresh `git.diff` with `staged=true` and pass that review ID. Commit does not stage and refuses unrelated/unapproved index changes. Canonical filesystem writes supply ownership evidence; pre-existing/mixed or unattributed changes require ASK. Restore/fetch/push always ask, including under broad/saved allow. Force/history rewrite is unavailable. Git paths are workspace-scoped; nested branch switch is refused.
+
+Automatic workflow ends at local commit and report. Never push merely to finish a task. Remotes must already exist; explicit branch mapping is required. Managed commands do not run hooks/signing, do not expose credential URLs, and do not modify Git configuration. Approved project scripts/custom filters still have host-user authority; this is not an OS sandbox. Ownership/reviews are bounded and process-local; mixed changes use whole-file approval, without hunk staging.
+
+Actual checks and limitations: `PHASE9D_SELF_ACCEPTANCE.md`.

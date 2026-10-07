@@ -26,6 +26,7 @@ import { SkillGuidance } from "../../skill/guidance"
 import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
 import { v2WorkspaceNames } from "../../tool/workspace-operations"
+import { v2GitNames } from "../../tool/managed-git"
 import { v2ExecutionNames, executionTimeout, Runtime, runtimeNode } from "../../tool/execution-tools"
 import { ToolTurnBudget, configuredMaxToolCalls, executeBounded } from "../../tool/turn-budget"
 import { ToolOutputStore } from "../../tool-output-store"
@@ -232,8 +233,8 @@ const layer = Layer.effect(
       const definitions =
         toolMaterialization?.definitions.filter((tool) =>
           model.provider === "memory-local"
-            ? [...v2WorkspaceNames, ...v2ExecutionNames].includes(tool.name)
-            : ![...v2WorkspaceNames, ...v2ExecutionNames].includes(tool.name),
+            ? [...v2WorkspaceNames, ...v2ExecutionNames, ...v2GitNames].includes(tool.name)
+            : ![...v2WorkspaceNames, ...v2ExecutionNames, ...v2GitNames].includes(tool.name),
         ) ?? []
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
