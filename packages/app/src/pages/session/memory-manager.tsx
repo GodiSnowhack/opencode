@@ -340,6 +340,7 @@ export function MemoryManager(props: MemoryPanelIdentity) {
 
   return (
     <section
+      id="memory-manager"
       data-component="memory-manager"
       aria-label={language.t("memory.manager.title")}
       class="absolute inset-0 z-40 flex min-h-0 min-w-0 flex-col overflow-hidden bg-v2-background-bg-base text-text-base"

@@ -24,11 +24,12 @@ import type { UpdaterController } from "./updater-controller"
 import { createUpdaterSubscriptions } from "./updater-subscriptions"
 import { createDesktopDraftStore } from "./draft-store"
 import { nativeT } from "./native-translations"
-import { createMemoryStatusClient } from "./memory-status"
+import { MemoryStatusClient } from "./memory-status"
 import { createMemoryManagementClient, MemoryManagementError } from "./memory-management"
 import { MemoryGateway } from "@opencode-ai/core/memory/gateway"
 import type { MemoryManagementAction, MemoryManagementResponse } from "@opencode-ai/core/memory/management-types"
 import type { MemoryService } from "./memory-service"
+import { applyAgentToolSettings } from "./memory-service"
 import type { MemoryServiceAction } from "@opencode-ai/core/memory/desktop"
 
 const pickerFilters = (ext?: string[]) => {
@@ -71,10 +72,24 @@ export function registerIpcHandlers(deps: Deps) {
       case "update": {
         const before = deps.memoryService.snapshot.settings
         const result = await deps.memoryService.update(action.settings)
+        const immediateSettingsChanged =
+          before.agentTools !== result.settings.agentTools ||
+          before.maxToolCalls !== result.settings.maxToolCalls ||
+          before.contextLength !== result.settings.contextLength
+        try {
+          await applyAgentToolSettings(before, result.settings, deps.applyMemorySettings)
+        } catch (error) {
+          await deps.memoryService.update(before)
+          await deps
+            .applyMemorySettings()
+            .catch((restoreError) => console.error("Memory sidecar rollback failed", restoreError))
+          throw error
+        }
         if (
-          before.enabled !== result.settings.enabled ||
-          before.model !== result.settings.model ||
-          before.port !== result.settings.port
+          !immediateSettingsChanged &&
+          (before.enabled !== result.settings.enabled ||
+            before.model !== result.settings.model ||
+            before.port !== result.settings.port)
         )
           setTimeout(
             () =>
@@ -90,9 +105,17 @@ export function registerIpcHandlers(deps: Deps) {
         return deps.memoryService.snapshot
       case "restart":
         return deps.memoryService.restart()
-      case "checkOllama":
+      case "checkOllama": {
+        const previousModels = JSON.stringify(deps.memoryService.snapshot.ollama.chatModels ?? [])
         await deps.memoryService.detectOllama()
+        if (
+          deps.memoryService.snapshot.ollama.connected &&
+          previousModels !== JSON.stringify(deps.memoryService.snapshot.ollama.chatModels ?? []) &&
+          deps.memoryService.snapshot.settings.enabled
+        )
+          await deps.applyMemorySettings()
         return deps.memoryService.snapshot
+      }
       case "diagnostics":
       case "backups":
       case "backup":
@@ -120,25 +143,35 @@ export function registerIpcHandlers(deps: Deps) {
   ipcMain.handle("memory-service-subscribe", (event) => {
     serviceSubscriptions.get(event.sender.id)?.()
     const sender = event.sender
-    const cleanup = deps.memoryService.subscribe((snapshot) => {
+    const unsubscribe = deps.memoryService.subscribe((snapshot) => {
       if (!sender.isDestroyed()) sender.send("memory-service-update", snapshot)
     })
+    const cleanup = () => {
+      unsubscribe()
+      if (serviceSubscriptions.get(sender.id) === cleanup) serviceSubscriptions.delete(sender.id)
+      sender.removeListener("destroyed", cleanup)
+    }
     serviceSubscriptions.set(sender.id, cleanup)
-    sender.once("destroyed", () => {
-      cleanup()
-      serviceSubscriptions.delete(sender.id)
-    })
+    sender.once("destroyed", cleanup)
   })
   ipcMain.handle("memory-service-unsubscribe", (event) => {
     serviceSubscriptions.get(event.sender.id)?.()
     serviceSubscriptions.delete(event.sender.id)
   })
-  const memoryStatus = createMemoryStatusClient()
-  const memoryManagement = createMemoryManagementClient()
+  const memoryStatus = new MemoryStatusClient()
+  const memoryConfig = () => ({
+    enabled: deps.memoryService.snapshot.settings.enabled,
+    gatewayURL: `http://127.0.0.1:${deps.memoryService.snapshot.settings.port}/v1`,
+  })
+  const stopMemoryService = deps.memoryService.subscribe(() => memoryStatus.configure(memoryConfig()))
   const memorySubscriptions = new Map<number, { id: string; cleanup: () => void }>()
-  app.once("will-quit", () => memoryStatus?.stop())
-  ipcMain.handle("memory-status-enabled", () => !!memoryStatus)
+  app.once("will-quit", () => {
+    stopMemoryService()
+    memoryStatus.stop()
+  })
+  ipcMain.handle("memory-status-enabled", () => memoryConfig().enabled)
   ipcMain.handle("memory-manage", async (_event, action: MemoryManagementAction): Promise<MemoryManagementResponse> => {
+    const memoryManagement = createMemoryManagementClient(undefined, memoryConfig())
     if (!memoryManagement) return { ok: false, error: { code: "disabled" } }
     try {
       return { ok: true, value: await memoryManagement.execute(action) }
@@ -152,7 +185,7 @@ export function registerIpcHandlers(deps: Deps) {
     "memory-effective-project-id",
     (_event, input: Pick<MemoryGateway.Identity, "projectID" | "projectRoot" | "directory">) => {
       if (
-        !memoryStatus ||
+        !memoryConfig().enabled ||
         typeof input?.projectID !== "string" ||
         typeof input.projectRoot !== "string" ||
         typeof input.directory !== "string"
@@ -165,7 +198,6 @@ export function registerIpcHandlers(deps: Deps) {
   ipcMain.handle("memory-status-reconnect", () => memoryStatus?.reconnect())
   ipcMain.handle("memory-status-subscribe", (event, id: string) => {
     memorySubscriptions.get(event.sender.id)?.cleanup()
-    if (!memoryStatus) return
     const sender = event.sender
     const unsubscribe = memoryStatus.subscribe((snapshot) => {
       if (!sender.isDestroyed()) sender.send("memory-status-update", snapshot)

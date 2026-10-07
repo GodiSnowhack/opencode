@@ -94,6 +94,57 @@ const layer = Layer.mergeAll(
 
 const it = testEffect(layer)
 
+it.effect("hides managed tools when Agent Tools is off", () =>
+  Effect.gen(function* () {
+    const previous = process.env.OPENCODE_AGENT_TOOLS_ENABLED
+    process.env.OPENCODE_AGENT_TOOLS_ENABLED = "false"
+    try {
+      const tools = yield* SessionTools.resolve({
+        agent,
+        model: { ...model, providerID: ProviderV2.ID.make("memory-local") },
+        session: { id: sessionID, permission: [] } as unknown as Session.Info,
+        processor: {} as never,
+        bypassAgentCheck: false,
+        messages: [],
+        promptOps: {} as never,
+      })
+      expect(Object.keys(tools)).toEqual([])
+    } finally {
+      if (previous === undefined) delete process.env.OPENCODE_AGENT_TOOLS_ENABLED
+      else process.env.OPENCODE_AGENT_TOOLS_ENABLED = previous
+    }
+  }),
+)
+
+it.effect("Build and Plan obey the managed tool gate across OFF and ON toggles", () =>
+  Effect.gen(function* () {
+    const previous = process.env.OPENCODE_AGENT_TOOLS_ENABLED
+    const managed = { ...model, providerID: ProviderV2.ID.make("memory-local") }
+    const resolve = (name: string) =>
+      SessionTools.resolve({
+        agent: { ...agent, name },
+        model: managed,
+        session: { id: sessionID, permission: [] } as unknown as Session.Info,
+        processor: {} as never,
+        bypassAgentCheck: false,
+        messages: [],
+        promptOps: {} as never,
+      })
+    try {
+      process.env.OPENCODE_AGENT_TOOLS_ENABLED = "true"
+      expect(Object.keys(yield* resolve("build"))).toEqual(["timing"])
+      process.env.OPENCODE_AGENT_TOOLS_ENABLED = "false"
+      expect(Object.keys(yield* resolve("build"))).toEqual([])
+      expect(Object.keys(yield* resolve("plan"))).toEqual([])
+      process.env.OPENCODE_AGENT_TOOLS_ENABLED = "true"
+      expect(Object.keys(yield* resolve("build"))).toEqual(["timing"])
+    } finally {
+      if (previous === undefined) delete process.env.OPENCODE_AGENT_TOOLS_ENABLED
+      else process.env.OPENCODE_AGENT_TOOLS_ENABLED = previous
+    }
+  }),
+)
+
 it.effect("preserves running tool start time across metadata updates", () =>
   Effect.gen(function* () {
     const state: SessionV1.ToolPart = {

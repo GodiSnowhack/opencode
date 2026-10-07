@@ -4,7 +4,7 @@ import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
-import { memoryStatusEnabled, statusView } from "@/memory/status-view"
+import { memoryStatusEnabled, statusView, toggleMemoryPanel } from "@/memory/status-view"
 
 export function MemoryStatusButton(props: {
   label: string
@@ -84,7 +84,7 @@ function VisibleMemoryStatus() {
         queue={view().queue}
         queueLabel={language.t("memory.status.queueSuffix", { count: view().queue })}
         elapsed={view().elapsed}
-        onToggle={() => platform.memoryStatus!.panel.toggle()}
+        onToggle={() => toggleMemoryPanel(platform.memoryStatus)}
       />
     </TooltipV2>
   )

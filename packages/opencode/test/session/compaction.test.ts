@@ -22,6 +22,7 @@ import { SessionExecution } from "@opencode-ai/core/session/execution"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
 
 import { Provider } from "@/provider/provider"
+import { usable } from "../../src/session/overflow"
 import * as SessionProcessorModule from "../../src/session/processor"
 import { ProviderTest } from "../fake/provider"
 import { testEffect } from "../lib/effect"
@@ -380,6 +381,12 @@ function compactionContext(context: string) {
 }
 
 describe("session.compaction.isOverflow", () => {
+  test("managed 64K compaction budget follows model metadata with separate 8K output", () => {
+    const cfg: ConfigV1.Info = {}
+    expect(usable({ cfg, model: createModel({ context: 32768, output: 8192 }) })).toBe(24576)
+    expect(usable({ cfg, model: createModel({ context: 65536, output: 8192 }) })).toBe(57344)
+  })
+
   it.live(
     "returns true when token count exceeds usable context",
     provideTmpdirInstance(() =>

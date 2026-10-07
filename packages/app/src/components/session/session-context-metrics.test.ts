@@ -38,6 +38,22 @@ const user = (id: string) => {
 }
 
 describe("getSessionContext", () => {
+  test("new managed session uses refreshed model context metadata", () => {
+    const messages = [
+      assistant("managed", { input: 100, output: 20, reasoning: 0, read: 0, write: 0 }, 0, "memory-local", "qwen3:8b"),
+    ]
+    const provider = (context: number) => [
+      {
+        id: "memory-local",
+        models: { "qwen3:8b": { limit: { context } } },
+      },
+    ]
+
+    expect(getSessionContext(messages, provider(32768))?.limit).toBe(32768)
+    expect(getSessionContext(messages, provider(65536))?.limit).toBe(65536)
+    expect(getSessionContext(messages, provider(32768))?.limit).toBe(32768)
+  })
+
   test("computes token totals and usage from latest assistant with tokens", () => {
     const messages = [
       user("u1"),

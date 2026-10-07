@@ -37,6 +37,42 @@ afterEach(() => {
 })
 
 describe("Desktop MemoryStatus client", () => {
+  test("managed settings enable status before sidecar env and survive disable, restart and port changes", async () => {
+    const urls: string[] = []
+    const request = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      urls.push(requestURL(input))
+      if (requestURL(input).endsWith("/memory/status")) return Response.json(idle)
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            init?.signal?.addEventListener("abort", () => controller.error(new Error("aborted")), { once: true })
+          },
+        }),
+      )
+    }) as typeof fetch
+    const client = new MemoryStatusClient(undefined, request)
+    const seen: MemoryStatusSnapshot[] = []
+    const stop = client.subscribe((value) => seen.push(value))
+    expect(urls).toHaveLength(0)
+    client.configure({ enabled: true, gatewayURL: "http://127.0.0.1:11435/v1" })
+    await waitFor(() => urls.length === 2 && seen.at(-1)?.connected === true)
+    // Agent/model/catalog changes publish service snapshots, but the same origin must not duplicate SSE.
+    client.configure({ enabled: true, gatewayURL: "http://127.0.0.1:11435/v1" })
+    expect(urls).toHaveLength(2)
+    client.reconnect()
+    await waitFor(() => urls.length === 4)
+    client.configure({ enabled: true, gatewayURL: "http://127.0.0.1:11436/v1" })
+    expect(seen.at(-1)?.connected).toBe(false)
+    await waitFor(() => urls.length === 6 && seen.at(-1)?.connected === true)
+    expect(urls.at(-1)).toBe("http://127.0.0.1:11436/memory/events")
+    client.configure({ enabled: false })
+    expect(seen.at(-1)?.connected).toBe(false)
+    client.configure({ enabled: true, gatewayURL: "http://127.0.0.1:11436/v1" })
+    await waitFor(() => urls.length === 8)
+    stop()
+    client.configure({ enabled: true, gatewayURL: "http://127.0.0.1:11437/v1" })
+    expect(urls).toHaveLength(8)
+  })
   test("disabled and cloud configurations create no client or requests", () => {
     process.env.OPENCODE_MEMORY_INTEGRATION = "false"
     process.env.OPENCODE_MEMORY_GATEWAY_URL = "http://127.0.0.1:11435/v1"

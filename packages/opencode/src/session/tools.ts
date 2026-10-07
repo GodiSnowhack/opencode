@@ -8,18 +8,19 @@ import { Permission } from "@/permission"
 import { Tool } from "@/tool/tool"
 import { ToolJsonSchema } from "@/tool/json-schema"
 import { ToolRegistry } from "@/tool/registry"
+import { ToolTurnBudget, TOOL_TIMEOUT_MS, executeBounded, recordToolMetric } from "@/tool/turn-budget"
 import { Truncate } from "@/tool/truncate"
 
 import { Plugin } from "@/plugin"
 import type { TaskPromptOps } from "@/tool/task"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
-import { Effect } from "effect"
-import { MessageV2 } from "./message-v2"
+import { Cause, Effect, Exit } from "effect"
+import { InstanceState } from "@/effect/instance-state"
+import { MemoryGateway } from "@opencode-ai/core/memory/gateway"
 import { Session } from "./session"
 import { SessionProcessor } from "./processor"
 import { PartID } from "./schema"
 import { EffectBridge } from "@/effect/bridge"
-import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -46,8 +47,12 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   bypassAgentCheck: boolean
   messages: SessionV1.WithParts[]
   promptOps: TaskPromptOps
+  budget?: ToolTurnBudget
 }) {
   const tools: Record<string, AITool> = {}
+  if (MemoryGateway.agentToolsDisabled({ providerID: input.model.providerID, endpoint: input.model.api.url }))
+    return tools
+  if (input.model.providerID === "memory-local" && input.budget && !input.budget.available) return tools
   const run = yield* EffectBridge.make()
   const plugin = yield* Plugin.Service
   const permission = yield* Permission.Service
@@ -103,6 +108,89 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         return run.promise(
           Effect.gen(function* () {
             const ctx = context(args, options)
+            if (input.model.providerID === "memory-local") {
+              if (options.abortSignal?.aborted) return yield* Effect.interrupt
+              const started = Date.now()
+              const invocationId = options.toolCallId
+              const instance = yield* InstanceState.context
+              const projectId = MemoryGateway.effectiveProjectID({
+                projectID: instance.project.id,
+                projectRoot: instance.worktree,
+                directory: instance.directory,
+              })
+              const limit = input.budget?.begin(item.id, args)
+              const exit =
+                limit || options.abortSignal?.aborted
+                  ? undefined
+                  : yield* executeBounded(
+                      item.execute(args, ctx),
+                      options.abortSignal,
+                      item.timeoutMs ?? TOOL_TIMEOUT_MS,
+                    ).pipe(Effect.exit)
+              if (exit && Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause))
+                return yield* Effect.failCause(exit.cause)
+              const error = exit && Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined
+              const code =
+                limit ??
+                (options.abortSignal?.aborted || error === "CANCELLED"
+                  ? "CANCELLED"
+                  : error instanceof Tool.InvalidArgumentsError
+                    ? "INVALID_ARGUMENT"
+                    : Cause.isTimeoutError(error)
+                      ? "TIMEOUT"
+                      : error
+                        ? "EXECUTION_FAILED"
+                        : undefined)
+              const result = exit && Exit.isSuccess(exit) ? exit.value : undefined
+              const durationMs = Date.now() - started
+              const bounded = limit
+                ? undefined
+                : input.budget?.finish(item.id, args, result?.output ?? JSON.stringify({ ok: false, code }), durationMs)
+              const output = {
+                title: result?.title ?? "Tool error",
+                output: bounded?.output ?? result?.output ?? JSON.stringify({ ok: false, code }),
+                metadata: {
+                  ...result?.metadata,
+                  truncated: bounded?.truncated ?? false,
+                  originalBytes: bounded?.originalBytes,
+                },
+              }
+              const errorCode =
+                code ??
+                (bounded?.output === '{"ok":false,"code":"RESULT_TOO_LARGE"}'
+                  ? "RESULT_TOO_LARGE"
+                  : result?.metadata && "errorCode" in result.metadata && typeof result.metadata.errorCode === "string"
+                    ? result.metadata.errorCode
+                    : undefined)
+              recordToolMetric({
+                status:
+                  errorCode === "NOT_ALLOWED"
+                    ? "denied"
+                    : errorCode === "TIMEOUT"
+                      ? "timeout"
+                      : errorCode === "CANCELLED"
+                        ? "cancelled"
+                        : errorCode
+                          ? "failed"
+                          : "success",
+                durationMs,
+                loopPrevented: input.budget?.loopPrevented,
+                truncated: bounded?.truncated,
+              })
+              yield* Effect.logInfo("agent_tool_invocation", {
+                invocationId,
+                sessionId: ctx.sessionID,
+                projectId,
+                tool: item.id,
+                version: item.version ?? "1",
+                risk: item.risk ?? "READ",
+                permission: errorCode === "NOT_ALLOWED" ? "DENY" : "ALLOW",
+                durationMs,
+                status: errorCode ? "error" : "success",
+                errorCode,
+              })
+              return output
+            }
             yield* plugin.trigger(
               "tool.execute.before",
               { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID },
@@ -132,6 +220,10 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
       },
     })
   }
+
+  // Managed Qwen exposes only the bounded local READ registry. MCP/plugin tools
+  // below retain their normal behavior for other providers.
+  if (input.model.providerID === "memory-local") return tools
 
   const hasMcpResourceServer = Object.values(yield* mcp.clients()).some(
     (client) => !!client.getServerCapabilities()?.resources,

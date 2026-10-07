@@ -13,6 +13,28 @@ afterEach(() => {
 })
 
 describe("Desktop Memory Management client", () => {
+  test("managed settings provide navigation before sidecar env, including a changed port", async () => {
+    process.env.OPENCODE_MEMORY_INTEGRATION = "false"
+    delete process.env.OPENCODE_MEMORY_GATEWAY_URL
+    const urls: string[] = []
+    const request = (async (input: RequestInfo | URL) => {
+      urls.push(typeof input === "string" ? input : input instanceof URL ? input.href : input.url)
+      return Response.json({ items: [] })
+    }) as typeof fetch
+    for (const port of [11435, 11436]) {
+      const client = createMemoryManagementClient(request, { enabled: true, gatewayURL: `http://127.0.0.1:${port}/v1` })
+      expect(client).toBeDefined()
+      await client!.execute({ kind: "projects" })
+    }
+    expect(urls).toEqual([
+      "http://127.0.0.1:11435/memory/manage/projects",
+      "http://127.0.0.1:11436/memory/manage/projects",
+    ])
+    expect(createMemoryManagementClient(request, { enabled: false })).toBeUndefined()
+    expect(
+      createMemoryManagementClient(request, { enabled: true, gatewayURL: "http://remote.example/v1" }),
+    ).toBeUndefined()
+  })
   test("disabled and nonlocal endpoints create no client", () => {
     process.env.OPENCODE_MEMORY_INTEGRATION = "false"
     process.env.OPENCODE_MEMORY_GATEWAY_URL = "http://127.0.0.1:11435/v1"

@@ -10,6 +10,7 @@ import { resolveDefaultModel } from "@/hooks/provider-catalog"
 import { Persist, persisted } from "@/utils/persist"
 import { hasCustomAgent, resolveAgent } from "./local-agent"
 import { cycleModelVariant, getConfiguredAgentVariant, resolveModelVariant } from "./model-variant"
+import { missingManagedModel } from "./local-model-availability"
 import { useSDK } from "./sdk"
 import { useSync } from "./sync"
 import { useServerSDK } from "./server-sdk"
@@ -230,7 +231,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       },
     }
 
+    const missingModel = () => missingManagedModel(scope()?.model, validModel)
+
     const current = () => {
+      if (missingModel()) return
       const item = firstModel(
         () => scope()?.model,
         () => agent.current()?.model,
@@ -375,6 +379,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const result = {
       slug: createMemo(() => base64Encode(sdk().directory)),
       model,
+      missingManagedModel: missingModel,
       agent,
       session: {
         ready: savedReady,

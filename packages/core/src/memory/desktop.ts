@@ -4,9 +4,12 @@ export type MemoryDesktopSettings = {
   autoStart: boolean
   port: number
   model: string
+  contextLength: number
   retrievalTokens: number
   embeddings: boolean
   embeddingModel: string
+  agentTools: boolean
+  maxToolCalls: number
 }
 
 export type MemoryServiceState =
@@ -24,7 +27,20 @@ export type MemoryServiceSnapshot = {
   state: MemoryServiceState
   reason?: string
   dataDirectory: string
-  ollama: { connected: boolean; models: string[] }
+  ollama: {
+    connected: boolean
+    models: string[]
+    chatModels?: {
+      id: string
+      name: string
+      context?: number
+      tools: boolean
+      thinking: boolean
+      vision: boolean
+    }[]
+    effectiveContextLength?: number
+    modelContextLength?: number
+  }
 }
 
 export type MemoryServiceAction =
@@ -39,9 +55,12 @@ export const defaultMemoryDesktopSettings: MemoryDesktopSettings = {
   autoStart: true,
   port: 11435,
   model: "qwen3:8b",
+  contextLength: 32768,
   retrievalTokens: 1500,
   embeddings: false,
   embeddingModel: "",
+  agentTools: true,
+  maxToolCalls: 12,
 }
 
 function validModelName(value: unknown): value is string {
@@ -62,14 +81,17 @@ export function parseMemoryDesktopSettings(value: unknown): MemoryDesktopSetting
     autoStart: input.autoStart === undefined ? defaultMemoryDesktopSettings.autoStart : input.autoStart,
     port: input.port === undefined ? defaultMemoryDesktopSettings.port : input.port,
     model: input.model === undefined ? defaultMemoryDesktopSettings.model : input.model,
+    contextLength: input.contextLength === undefined ? defaultMemoryDesktopSettings.contextLength : input.contextLength,
     retrievalTokens:
       input.retrievalTokens === undefined ? defaultMemoryDesktopSettings.retrievalTokens : input.retrievalTokens,
     embeddings: input.embeddings === undefined ? defaultMemoryDesktopSettings.embeddings : input.embeddings,
     embeddingModel:
       input.embeddingModel === undefined ? defaultMemoryDesktopSettings.embeddingModel : input.embeddingModel,
+    agentTools: input.agentTools === undefined ? defaultMemoryDesktopSettings.agentTools : input.agentTools,
+    maxToolCalls: input.maxToolCalls === undefined ? defaultMemoryDesktopSettings.maxToolCalls : input.maxToolCalls,
   }
   if (
-    [settings.enabled, settings.injection, settings.autoStart, settings.embeddings].some(
+    [settings.enabled, settings.injection, settings.autoStart, settings.embeddings, settings.agentTools].some(
       (item) => typeof item !== "boolean",
     )
   )
@@ -89,6 +111,20 @@ export function parseMemoryDesktopSettings(value: unknown): MemoryDesktopSetting
   )
     throw new Error("invalid_retrieval_tokens")
   if (!validModelName(settings.model)) throw new Error("invalid_model")
+  if (
+    typeof settings.contextLength !== "number" ||
+    !Number.isInteger(settings.contextLength) ||
+    settings.contextLength < 4096 ||
+    settings.contextLength > 262144
+  )
+    throw new Error("invalid_context_length")
+  if (
+    typeof settings.maxToolCalls !== "number" ||
+    !Number.isInteger(settings.maxToolCalls) ||
+    settings.maxToolCalls < 1 ||
+    settings.maxToolCalls > 24
+  )
+    throw new Error("invalid_max_tool_calls")
   if (settings.embeddingModel !== "" && !validModelName(settings.embeddingModel))
     throw new Error("invalid_embedding_model")
   if (settings.embeddings && !settings.embeddingModel) throw new Error("embedding_model_required")

@@ -4,6 +4,17 @@ export function memoryStatusEnabled(memory?: { enabled: () => boolean }): boolea
   return memory?.enabled() === true
 }
 
+export function toggleMemoryPanel(memory?: { enabled: () => boolean; panel: { toggle(): void } }) {
+  if (!memory || !memoryStatusEnabled(memory)) return
+  memory.panel.toggle()
+}
+
+export function openMemoryManager(memory?: { enabled: () => boolean; manager: { open(): void } }, close?: () => void) {
+  if (!memory || !memoryStatusEnabled(memory)) return
+  close?.()
+  memory.manager.open()
+}
+
 export type StatusLabelKey =
   | "memory.status.ready"
   | "memory.status.analyzing"

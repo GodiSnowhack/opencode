@@ -12,6 +12,17 @@ const identity = {
 }
 
 describe("Memory Gateway identity headers", () => {
+  it("disables tools only for the managed local provider or matching Gateway endpoint", () => {
+    const managed = { providerID: "memory-local", endpoint: identity.endpoint }
+    expect(MemoryGateway.agentToolsDisabled(managed, gateway, "false")).toBe(true)
+    expect(MemoryGateway.agentToolsDisabled(managed, gateway, "true")).toBe(false)
+    expect(
+      MemoryGateway.agentToolsDisabled({ providerID: "custom", endpoint: identity.endpoint }, gateway, "false"),
+    ).toBe(true)
+    expect(
+      MemoryGateway.agentToolsDisabled({ providerID: "cloud", endpoint: "https://api.example/v1" }, gateway, "false"),
+    ).toBe(false)
+  })
   it("derives the status origin only from an enabled local Gateway URL", () => {
     expect(MemoryGateway.statusOrigin({ enabled: true, gatewayURL: "http://localhost:11435/v1/" })).toBe(
       "http://localhost:11435",

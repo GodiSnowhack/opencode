@@ -1,7 +1,9 @@
 import { Popover as Kobalte } from "@kobalte/core/popover"
-import { Component, ComponentProps, createEffect, createMemo, For, JSX, Show } from "solid-js"
+import { Component, ComponentProps, createEffect, createMemo, For, JSX, onMount, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
+import { usePlatform } from "@/context/platform"
+import { useServerSync } from "@/context/server-sync"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { popularProviders } from "@/hooks/use-providers"
 import { Button } from "@opencode-ai/ui/button"
@@ -51,8 +53,19 @@ const ModelList: Component<{
   action?: JSX.Element
   model?: ModelState
 }> = (props) => {
-  const model = props.model ?? useLocal().model
+  const local = useLocal()
+  const model = props.model ?? local.model
   const language = useLanguage()
+  const platform = usePlatform()
+  const serverSync = useServerSync()
+
+  onMount(() => {
+    if (!platform.memoryService) return
+    void platform
+      .memoryService({ kind: "checkOllama" })
+      .then(() => serverSync().refreshProviders())
+      .catch(() => undefined)
+  })
 
   const models = createMemo(() =>
     model
@@ -62,53 +75,60 @@ const ModelList: Component<{
   )
 
   return (
-    <List
-      class={`flex-1 px-3 min-h-0 [&_[data-slot=list-scroll]]:flex-1 [&_[data-slot=list-scroll]]:min-h-0 ${props.class ?? ""}`}
-      search={{ placeholder: language.t("dialog.model.search.placeholder"), autofocus: true, action: props.action }}
-      emptyMessage={language.t("dialog.model.empty")}
-      key={(x) => `${x.provider.id}:${x.id}`}
-      items={models}
-      current={model.current()}
-      filterKeys={["provider.name", "name", "id"]}
-      sortBy={(a, b) => a.name.localeCompare(b.name)}
-      groupBy={(x) => x.provider.name}
-      sortGroupsBy={(a, b) => {
-        const aProvider = a.items[0].provider.id
-        const bProvider = b.items[0].provider.id
-        if (popularProviders.includes(aProvider) && !popularProviders.includes(bProvider)) return -1
-        if (!popularProviders.includes(aProvider) && popularProviders.includes(bProvider)) return 1
-        return popularProviders.indexOf(aProvider) - popularProviders.indexOf(bProvider)
-      }}
-      itemWrapper={(item, node) => (
-        <Tooltip
-          class="w-full"
-          placement="right-start"
-          gutter={12}
-          openDelay={0}
-          value={<ModelTooltip model={item} latest={item.latest} free={isFree(item.provider.id, item.cost)} />}
-        >
-          {node}
-        </Tooltip>
-      )}
-      onSelect={(x) => {
-        model.set(x ? { modelID: x.id, providerID: x.provider.id } : undefined, {
-          recent: true,
-        })
-        props.onSelect()
-      }}
-    >
-      {(i) => (
-        <div class="w-full flex items-center gap-x-2 text-13-regular">
-          <span class="truncate">{i.name}</span>
-          <Show when={isFree(i.provider.id, i.cost)}>
-            <Tag>{language.t("model.tag.free")}</Tag>
-          </Show>
-          <Show when={i.latest}>
-            <Tag>{language.t("model.tag.latest")}</Tag>
-          </Show>
-        </div>
-      )}
-    </List>
+    <>
+      <Show when={local.missingManagedModel()}>
+        <p role="alert" class="px-3 py-2 text-13-regular">
+          {language.t("memory.model.removed")}
+        </p>
+      </Show>
+      <List
+        class={`flex-1 px-3 min-h-0 [&_[data-slot=list-scroll]]:flex-1 [&_[data-slot=list-scroll]]:min-h-0 ${props.class ?? ""}`}
+        search={{ placeholder: language.t("dialog.model.search.placeholder"), autofocus: true, action: props.action }}
+        emptyMessage={language.t("dialog.model.empty")}
+        key={(x) => `${x.provider.id}:${x.id}`}
+        items={models}
+        current={model.current()}
+        filterKeys={["provider.name", "name", "id"]}
+        sortBy={(a, b) => a.name.localeCompare(b.name)}
+        groupBy={(x) => x.provider.name}
+        sortGroupsBy={(a, b) => {
+          const aProvider = a.items[0].provider.id
+          const bProvider = b.items[0].provider.id
+          if (popularProviders.includes(aProvider) && !popularProviders.includes(bProvider)) return -1
+          if (!popularProviders.includes(aProvider) && popularProviders.includes(bProvider)) return 1
+          return popularProviders.indexOf(aProvider) - popularProviders.indexOf(bProvider)
+        }}
+        itemWrapper={(item, node) => (
+          <Tooltip
+            class="w-full"
+            placement="right-start"
+            gutter={12}
+            openDelay={0}
+            value={<ModelTooltip model={item} latest={item.latest} free={isFree(item.provider.id, item.cost)} />}
+          >
+            {node}
+          </Tooltip>
+        )}
+        onSelect={(x) => {
+          model.set(x ? { modelID: x.id, providerID: x.provider.id } : undefined, {
+            recent: true,
+          })
+          props.onSelect()
+        }}
+      >
+        {(i) => (
+          <div class="w-full flex items-center gap-x-2 text-13-regular">
+            <span class="truncate">{i.name}</span>
+            <Show when={isFree(i.provider.id, i.cost)}>
+              <Tag>{language.t("model.tag.free")}</Tag>
+            </Show>
+            <Show when={i.latest}>
+              <Tag>{language.t("model.tag.latest")}</Tag>
+            </Show>
+          </div>
+        )}
+      </List>
+    </>
   )
 }
 

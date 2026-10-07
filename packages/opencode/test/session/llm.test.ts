@@ -757,6 +757,114 @@ describe("session.llm.stream", () => {
   const opencodeFixture = { providerID: "opencode-test", modelID: vivgridFixture.modelID }
 
   it.instance(
+    "sends no native tool schemas to the managed Gateway when Agent Tools is OFF and restores them on ON",
+    () =>
+      Effect.gen(function* () {
+        const previous = {
+          memory: process.env.OPENCODE_MEMORY_INTEGRATION,
+          gateway: process.env.OPENCODE_MEMORY_GATEWAY_URL,
+          tools: process.env.OPENCODE_AGENT_TOOLS_ENABLED,
+        }
+        process.env.OPENCODE_MEMORY_INTEGRATION = "true"
+        process.env.OPENCODE_MEMORY_GATEWAY_URL = state.server!.url.origin
+        try {
+          const fixture = loadFixture(vivgridFixture.providerID, vivgridFixture.modelID)
+          const resolved = yield* Provider.use.getModel(
+            ProviderV2.ID.make(vivgridFixture.providerID),
+            ModelV2.ID.make(fixture.model.id),
+          )
+          const sessionID = SessionID.make("session-tools-off-wire")
+          const agent = { name: "build", mode: "primary", options: {}, permission: [] } satisfies Agent.Info
+          const read = tool({
+            description: "Read info.txt",
+            inputSchema: z.object({ path: z.string() }),
+            execute: async () => ({ output: "local" }),
+          })
+          const input = {
+            user: {
+              id: MessageID.make("msg-tools-off-wire"),
+              sessionID,
+              role: "user" as const,
+              time: { created: Date.now() },
+              agent: agent.name,
+              model: { providerID: ProviderV2.ID.make(vivgridFixture.providerID), modelID: resolved.id },
+            },
+            sessionID,
+            model: resolved,
+            agent,
+            system: [],
+            messages: [{ role: "user" as const, content: "Read info.txt" }],
+            tools: { read },
+          }
+          process.env.OPENCODE_AGENT_TOOLS_ENABLED = "false"
+          const off = waitRequest(
+            "/chat/completions",
+            new Response(createChatStream("No file access"), { headers: { "Content-Type": "text/event-stream" } }),
+          )
+          yield* drain(input)
+          const disabled = yield* Effect.promise(() => off)
+          expect(disabled.body.tools ?? []).toEqual([])
+          expect(disabled.body.tool_choice === undefined || disabled.body.tool_choice === "none").toBe(true)
+          expect(disabled.headers.get("X-Memory-Session-Id")).toBe(sessionID)
+
+          process.env.OPENCODE_AGENT_TOOLS_ENABLED = "true"
+          const on = waitRequest(
+            "/chat/completions",
+            new Response(createChatStream("File available"), { headers: { "Content-Type": "text/event-stream" } }),
+          )
+          yield* drain(input)
+          const enabled = yield* Effect.promise(() => on)
+          expect(
+            (enabled.body.tools as Array<{ function?: { name?: string } }>).some(
+              (item) => item.function?.name === "read",
+            ),
+          ).toBe(true)
+
+          const unsupported = waitRequest(
+            "/chat/completions",
+            new Response(createChatStream("Chat without tools"), { headers: { "Content-Type": "text/event-stream" } }),
+          )
+          yield* drain({
+            ...input,
+            model: {
+              ...resolved,
+              providerID: ProviderV2.ID.make("memory-local"),
+              capabilities: { ...resolved.capabilities, toolcall: false },
+            },
+          })
+          const withoutCapability = yield* Effect.promise(() => unsupported)
+          expect(withoutCapability.body.tools ?? []).toEqual([])
+        } finally {
+          if (previous.memory === undefined) delete process.env.OPENCODE_MEMORY_INTEGRATION
+          else process.env.OPENCODE_MEMORY_INTEGRATION = previous.memory
+          if (previous.gateway === undefined) delete process.env.OPENCODE_MEMORY_GATEWAY_URL
+          else process.env.OPENCODE_MEMORY_GATEWAY_URL = previous.gateway
+          if (previous.tools === undefined) delete process.env.OPENCODE_AGENT_TOOLS_ENABLED
+          else process.env.OPENCODE_AGENT_TOOLS_ENABLED = previous.tools
+        }
+      }),
+    {
+      config: () => ({
+        enabled_providers: [vivgridFixture.providerID, "memory-local"],
+        provider: {
+          [vivgridFixture.providerID]: { options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` } },
+          "memory-local": {
+            npm: "@ai-sdk/openai-compatible",
+            options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
+            models: {
+              [vivgridFixture.modelID]: {
+                name: vivgridFixture.modelID,
+                tool_call: false,
+                limit: { context: 32768, output: 8192 },
+              },
+            },
+          },
+        },
+      }),
+    },
+  )
+
+  it.instance(
     "sends stable memory identity and exact auxiliary kind only to the configured gateway",
     () =>
       Effect.gen(function* () {
@@ -769,21 +877,39 @@ describe("session.llm.stream", () => {
         try {
           const fixture = loadFixture(vivgridFixture.providerID, vivgridFixture.modelID)
           const resolved = yield* Provider.use.getModel(
-            ProviderV2.ID.make(vivgridFixture.providerID), ModelV2.ID.make(fixture.model.id),
+            ProviderV2.ID.make(vivgridFixture.providerID),
+            ModelV2.ID.make(fixture.model.id),
           )
           const ctx = yield* InstanceRef
           if (!ctx) throw new Error("InstanceRef not provided")
           const sessionID = SessionID.make("session-memory-identity")
-          const agent = { name: "test", mode: "primary", options: {},
-            permission: [{ permission: "*", pattern: "*", action: "allow" }] } satisfies Agent.Info
-          const user = { id: MessageID.make("msg_memory-identity"), sessionID, role: "user",
-            time: { created: Date.now() }, agent: agent.name,
+          const agent = {
+            name: "test",
+            mode: "primary",
+            options: {},
+            permission: [{ permission: "*", pattern: "*", action: "allow" }],
+          } satisfies Agent.Info
+          const user = {
+            id: MessageID.make("msg_memory-identity"),
+            sessionID,
+            role: "user",
+            time: { created: Date.now() },
+            agent: agent.name,
             model: { providerID: ProviderV2.ID.make(vivgridFixture.providerID), modelID: resolved.id },
           } satisfies SessionV1.User
-          const input = { user, sessionID, model: resolved, agent, system: [],
-            messages: [{ role: "user" as const, content: "Hello" }], tools: {} }
-          const first = waitRequest("/chat/completions", new Response(createChatStream("First"),
-            { headers: { "Content-Type": "text/event-stream" } }))
+          const input = {
+            user,
+            sessionID,
+            model: resolved,
+            agent,
+            system: [],
+            messages: [{ role: "user" as const, content: "Hello" }],
+            tools: {},
+          }
+          const first = waitRequest(
+            "/chat/completions",
+            new Response(createChatStream("First"), { headers: { "Content-Type": "text/event-stream" } }),
+          )
           yield* drain(input)
           const initial = yield* Effect.promise(() => first)
           expect(initial.headers.get("X-Memory-Session-Id")).toBe(sessionID)
@@ -792,8 +918,10 @@ describe("session.llm.stream", () => {
           expect(initial.headers.get("X-Memory-Request-Kind")).toBe("user")
           expect(initial.headers.get("Authorization")).toBe("Bearer test-key")
 
-          const second = waitRequest("/chat/completions", new Response(createChatStream("Title"),
-            { headers: { "Content-Type": "text/event-stream" } }))
+          const second = waitRequest(
+            "/chat/completions",
+            new Response(createChatStream("Title"), { headers: { "Content-Type": "text/event-stream" } }),
+          )
           yield* drain({ ...input, requestKind: "title" })
           const title = yield* Effect.promise(() => second)
           expect(title.headers.get("X-Memory-Session-Id")).toBe(initial.headers.get("X-Memory-Session-Id"))
@@ -801,8 +929,10 @@ describe("session.llm.stream", () => {
           expect(title.headers.get("X-Memory-Request-Kind")).toBe("title")
 
           process.env.OPENCODE_MEMORY_GATEWAY_URL = "http://127.0.0.1:11435"
-          const third = waitRequest("/chat/completions", new Response(createChatStream("Direct"),
-            { headers: { "Content-Type": "text/event-stream" } }))
+          const third = waitRequest(
+            "/chat/completions",
+            new Response(createChatStream("Direct"), { headers: { "Content-Type": "text/event-stream" } }),
+          )
           yield* drain(input)
           const direct = yield* Effect.promise(() => third)
           expect(direct.headers.get("X-Memory-Session-Id")).toBeNull()
@@ -816,9 +946,14 @@ describe("session.llm.stream", () => {
           else process.env.OPENCODE_MEMORY_GATEWAY_URL = previous.url
         }
       }),
-    { config: () => ({ enabled_providers: [vivgridFixture.providerID], provider: {
-      [vivgridFixture.providerID]: { options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` } },
-    } }) },
+    {
+      config: () => ({
+        enabled_providers: [vivgridFixture.providerID],
+        provider: {
+          [vivgridFixture.providerID]: { options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` } },
+        },
+      }),
+    },
   )
 
   it.instance(

@@ -40,6 +40,14 @@ export function matches(url: string | undefined, config: Config = current()): bo
   return gateway !== undefined && gateway === endpoint(url)
 }
 
+export function agentToolsDisabled(
+  input: { providerID: string; endpoint?: string },
+  config: Config = current(),
+  enabled = process.env.OPENCODE_AGENT_TOOLS_ENABLED,
+): boolean {
+  return enabled !== "true" && (input.providerID === "memory-local" || matches(input.endpoint, config))
+}
+
 export function statusOrigin(config: Config = current()): string | undefined {
   if (!config.enabled || !config.gatewayURL || !endpoint(config.gatewayURL)) return undefined
   return new URL(config.gatewayURL).origin

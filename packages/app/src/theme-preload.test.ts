@@ -43,4 +43,17 @@ describe("theme preload", () => {
     expect(document.documentElement.dataset.theme).toBe("nightowl")
     expect(document.getElementById("oc-theme-preload")?.textContent).toContain("--background-base:#fff;")
   })
+
+  test("applies the dark scheme and cached tokens at the document root for portals", () => {
+    localStorage.setItem("opencode-theme-id", "nightowl")
+    localStorage.setItem("opencode-color-scheme", "dark")
+    localStorage.setItem("opencode-theme-css-dark", "--v2-background-bg-layer-01:#151515;")
+
+    run()
+
+    expect(document.documentElement.dataset.colorScheme).toBe("dark")
+    expect(document.getElementById("oc-theme-preload")?.textContent).toContain(
+      ":root{color-scheme:dark;--text-mix-blend-mode:plus-lighter;--v2-background-bg-layer-01:#151515;}",
+    )
+  })
 })

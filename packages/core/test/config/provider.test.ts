@@ -1,4 +1,4 @@
-import { describe, expect } from "bun:test"
+import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { Catalog } from "@opencode-ai/core/catalog"
 import { Config } from "@opencode-ai/core/config"
@@ -8,6 +8,8 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { PluginV2 } from "@opencode-ai/core/plugin"
 import { PluginHost } from "@opencode-ai/core/plugin/host"
 import { ProviderV2 } from "@opencode-ai/core/provider"
+import { ConfigV1 } from "@opencode-ai/core/v1/config/config"
+import { ConfigMigrateV1 } from "@opencode-ai/core/v1/config/migrate"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "../plugin/fixture"
 
@@ -53,6 +55,37 @@ function request(headers: Record<string, string>, variant?: string) {
 }
 
 const decode = Schema.decodeUnknownSync(Config.Info)
+
+test("V2 migration preserves the managed Ollama inventory and per-model limits", () => {
+  const ids = ["qwen3:8b", "qwen3-coder:30b", "gemma4:26b-a4b-it-q4_K_M"]
+  const legacy = Schema.decodeUnknownSync(ConfigV1.Info)({
+    provider: {
+      "memory-local": {
+        name: "Memory Local (managed)",
+        npm: "@ai-sdk/openai-compatible",
+        env: [],
+        models: Object.fromEntries(
+          ids.map((id) => [
+            id,
+            {
+              name: id,
+              tool_call: true,
+              modalities: { input: id.startsWith("gemma") ? ["text", "image"] : ["text"], output: ["text"] },
+              limit: { context: id === "qwen3:8b" ? 40960 : 131072, output: 8192 },
+            },
+          ]),
+        ),
+        options: { apiKey: "local", baseURL: "http://127.0.0.1:11435/v1" },
+      },
+    },
+  })
+  const migrated = ConfigMigrateV1.migrate(legacy)
+  const models = migrated.providers?.["memory-local"]?.models
+  expect(Object.keys(models ?? {})).toEqual(ids)
+  expect(models?.["qwen3:8b"]?.limit?.context).toBe(40960)
+  expect(models?.["gemma4:26b-a4b-it-q4_K_M"]?.capabilities?.input).toContain("image")
+  expect(models?.["qwen3-coder:30b"]?.capabilities?.tools).toBe(true)
+})
 
 describe("ConfigProviderPlugin.Plugin", () => {
   it.effect("keeps configured model variant bodies unchanged", () =>

@@ -25,6 +25,27 @@ const snapshot = (input: Partial<GatewayStatus> = {}): MemoryStatusSnapshot => (
 })
 
 describe("Memory Panel view", () => {
+  test("side panel follows queue and saved-item transitions using the shared status snapshot", () => {
+    const stages = [
+      snapshot(),
+      snapshot({ state: "MEMORY_ANALYZING", phase: "MEMORY_ANALYZING", queueLength: 2 }),
+      snapshot({ processedItems: 1 }),
+      { connected: false, status: null, receivedAt: now },
+      snapshot({ state: "ERROR", phase: "ERROR", error: "failure" }),
+    ]
+    const before = JSON.stringify(stages)
+    const views = stages.map((value) => memoryPanelView(value, now, {}))
+    expect(views.map((view) => view.statusKey)).toEqual([
+      "memory.status.ready",
+      "memory.status.analyzing",
+      "memory.status.ready",
+      "memory.status.offline",
+      "memory.status.error",
+    ])
+    expect(views[1].queueLength).toBe(2)
+    expect(views[2].processedItems).toBe(1)
+    expect(JSON.stringify(stages)).toBe(before)
+  })
   test("opens, closes and toggles panel state", () => {
     expect(nextMemoryPanelOpen(false, "open")).toBe(true)
     expect(nextMemoryPanelOpen(true, "close")).toBe(false)

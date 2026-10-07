@@ -27,6 +27,7 @@ import { render } from "solid-js/web"
 import pkg from "../../package.json"
 import { t } from "./i18n"
 import { initializationData } from "./initialization"
+import { subscribeMemory } from "./memory-subscriptions"
 import { DesktopFirstLaunchOnboarding } from "./onboarding"
 import { resetZoom, setPinchZoomEnabled, webviewZoom, zoomIn, zoomOut } from "./webview-zoom"
 import { windowFullscreen } from "./window-fullscreen"
@@ -370,22 +371,15 @@ function DesktopRoot(props: { windowState: DesktopWindowState }) {
       effectiveProjectID: (input) => window.api.memoryEffectiveProjectID(input),
     },
   }
-  let disposed = false
   let unsubscribe: (() => void) | undefined
   onMount(() => {
-    void window.api
-      .memoryStatusEnabled()
-      .then(async (enabled) => {
-        if (!enabled || disposed) return
-        setMemory("enabled", true)
-        const stop = await window.api.memoryStatusSubscribe((snapshot) => setMemory("snapshot", snapshot))
-        if (disposed) stop()
-        else unsubscribe = stop
-      })
-      .catch(() => undefined)
+    unsubscribe = subscribeMemory(
+      window.api,
+      (enabled) => setMemory("enabled", enabled),
+      (snapshot) => setMemory("snapshot", snapshot),
+    )
   })
   onCleanup(() => {
-    disposed = true
     unsubscribe?.()
   })
   createEffect(() => {

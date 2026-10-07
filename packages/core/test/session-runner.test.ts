@@ -39,6 +39,7 @@ import { ToolRegistry } from "@opencode-ai/core/tool/registry"
 import { ApplicationTools } from "@opencode-ai/core/tool/application-tools"
 import { AgentV2 } from "@opencode-ai/core/agent"
 import { Config } from "@opencode-ai/core/config"
+import { Catalog } from "@opencode-ai/core/catalog"
 import { ConfigCompaction } from "@opencode-ai/core/config/compaction"
 import { Tool } from "@opencode-ai/core/tool/tool"
 import {
@@ -255,6 +256,7 @@ const it = testEffect(
   AppNodeBuilder.build(
     LayerNode.group([
       Database.node,
+      Catalog.node,
       EventV2.node,
       QuestionV2.node,
       SessionProjector.node,
@@ -3486,7 +3488,11 @@ describe("SessionRunnerLLM", () => {
             LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
             LLMEvent.finish({ reason: "tool-calls" }),
           ],
-          [LLMEvent.stepStart({ index: 0 }), LLMEvent.stepFinish({ index: 0, reason: "stop" }), LLMEvent.finish({ reason: "stop" })],
+          [
+            LLMEvent.stepStart({ index: 0 }),
+            LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+            LLMEvent.finish({ reason: "stop" }),
+          ],
         ]
         yield* session.resume(sessionID)
         expect(requests).toHaveLength(2)
@@ -3496,11 +3502,20 @@ describe("SessionRunnerLLM", () => {
         expect(first?.["X-Memory-Project-Id"]).toStartWith("local-")
         expect(first?.["X-Memory-Project-Root"]).toBe("/project")
         expect(first?.["X-Memory-Request-Kind"]).toBe("user")
-        for (const name of ["X-Memory-Session-Id", "X-Memory-Project-Id", "X-Memory-Project-Root", "X-Memory-Request-Kind"])
+        for (const name of [
+          "X-Memory-Session-Id",
+          "X-Memory-Project-Id",
+          "X-Memory-Project-Root",
+          "X-Memory-Request-Kind",
+        ])
           expect(continuation?.[name]).toBe(first?.[name])
 
         yield* insertSession(otherSessionID)
-        yield* session.prompt({ sessionID: otherSessionID, prompt: Prompt.make({ text: "Another session" }), resume: false })
+        yield* session.prompt({
+          sessionID: otherSessionID,
+          prompt: Prompt.make({ text: "Another session" }),
+          resume: false,
+        })
         response = []
         responses = undefined
         requests.length = 0
@@ -3519,4 +3534,91 @@ describe("SessionRunnerLLM", () => {
     }),
   )
 
+  for (const scenario of [
+    { agent: "build", enabled: "true", modelTools: true, expected: ["echo", "defect"] },
+    { agent: "build", enabled: "false", modelTools: true, expected: [] },
+    { agent: "plan", enabled: "false", modelTools: true, expected: [] },
+    { agent: "build", enabled: "true", modelTools: false, expected: [] },
+  ] as const) {
+    it.effect(
+      `managed Gateway ${scenario.agent} exposes tools=${scenario.enabled} modelTools=${scenario.modelTools}`,
+      () =>
+        Effect.gen(function* () {
+          yield* setup
+          const previous = {
+            memory: process.env.OPENCODE_MEMORY_INTEGRATION,
+            gateway: process.env.OPENCODE_MEMORY_GATEWAY_URL,
+            tools: process.env.OPENCODE_AGENT_TOOLS_ENABLED,
+          }
+          process.env.OPENCODE_MEMORY_INTEGRATION = "true"
+          process.env.OPENCODE_MEMORY_GATEWAY_URL = "http://127.0.0.1:11435/v1"
+          process.env.OPENCODE_AGENT_TOOLS_ENABLED = scenario.enabled
+          currentModel = Model.make({
+            id: "memory-model",
+            provider: "memory-local",
+            route: OpenAIChat.route.with({ endpoint: { baseURL: "http://127.0.0.1:11435/v1" } }),
+          })
+          if (!scenario.modelTools) {
+            const catalog = yield* Catalog.Service
+            yield* catalog.transform((editor) =>
+              editor.model.update(ProviderV2.ID.make("memory-local"), ModelV2.ID.make("memory-model"), (model) => {
+                model.capabilities.tools = false
+              }),
+            )
+          }
+          try {
+            if (scenario.agent === "plan") {
+              const agents = yield* AgentV2.Service
+              yield* agents.transform((editor) =>
+                editor.update(AgentV2.ID.make("plan"), (agent) => {
+                  agent.mode = "primary"
+                }),
+              )
+              const { db } = yield* Database.Service
+              yield* db
+                .update(SessionTable)
+                .set({ agent: "plan" })
+                .where(eq(SessionTable.id, sessionID))
+                .run()
+                .pipe(Effect.orDie)
+            }
+            const session = yield* SessionV2.Service
+            yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Read info.txt" }), resume: false })
+            requests.length = 0
+            executions.length = 0
+            response =
+              scenario.agent === "build" && scenario.enabled === "false"
+                ? [
+                    LLMEvent.stepStart({ index: 0 }),
+                    LLMEvent.toolCall({ id: "unadvertised-read", name: "echo", input: { text: "must not execute" } }),
+                    LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
+                    LLMEvent.finish({ reason: "tool-calls" }),
+                  ]
+                : []
+            yield* session.resume(sessionID)
+            expect(requests[0]?.tools.map((tool) => tool.name)).toEqual([...scenario.expected])
+            if (scenario.enabled === "true" && scenario.modelTools) expect(requests[0]?.toolChoice).toBeUndefined()
+            else expect(requests[0]?.toolChoice).toMatchObject({ type: "none" })
+            expect(requests[0]?.http?.headers?.["X-Memory-Session-Id"]).toBe(sessionID)
+            if (scenario.agent === "build" && scenario.enabled === "false") {
+              expect(executions).toEqual([])
+              expect(requests).toHaveLength(1)
+              process.env.OPENCODE_AGENT_TOOLS_ENABLED = "true"
+              yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Read info.txt again" }), resume: false })
+              requests.length = 0
+              response = []
+              yield* session.resume(sessionID)
+              expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect"])
+            }
+          } finally {
+            if (previous.memory === undefined) delete process.env.OPENCODE_MEMORY_INTEGRATION
+            else process.env.OPENCODE_MEMORY_INTEGRATION = previous.memory
+            if (previous.gateway === undefined) delete process.env.OPENCODE_MEMORY_GATEWAY_URL
+            else process.env.OPENCODE_MEMORY_GATEWAY_URL = previous.gateway
+            if (previous.tools === undefined) delete process.env.OPENCODE_AGENT_TOOLS_ENABLED
+            else process.env.OPENCODE_AGENT_TOOLS_ENABLED = previous.tools
+          }
+        }),
+    )
+  }
 })

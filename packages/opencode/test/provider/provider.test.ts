@@ -226,6 +226,73 @@ it.instance(
 )
 
 it.instance(
+  "managed local model resolves the configured context independently of output",
+  Effect.gen(function* () {
+    const providerID = ProviderV2.ID.make("memory-local")
+    const modelID = ModelV2.ID.make("qwen3:8b")
+    const catalog = yield* list
+    const resolved = yield* Provider.use.getModel(providerID, modelID)
+    expect(catalog[providerID].models[modelID].limit.context).toBe(65536)
+    expect(resolved.limit.context).toBe(65536)
+    expect(resolved.limit.output).toBe(8192)
+  }),
+  {
+    config: {
+      provider: {
+        "memory-local": {
+          name: "Memory Local (managed)",
+          npm: "@ai-sdk/openai-compatible",
+          env: [],
+          models: { "qwen3:8b": { name: "qwen3:8b", tool_call: true, limit: { context: 65536, output: 8192 } } },
+          options: { apiKey: "local", baseURL: "http://127.0.0.1:11435/v1" },
+        },
+      },
+    },
+  },
+)
+
+it.instance(
+  "managed local provider exposes all discovered chat models to the V1 catalog",
+  Effect.gen(function* () {
+    const providerID = ProviderV2.ID.make("memory-local")
+    const catalog = yield* list
+    const models = catalog[providerID].models
+    expect(Object.keys(models).sort()).toEqual(["gemma4:26b-a4b-it-q4_K_M", "qwen3-coder:30b", "qwen3:8b"].sort())
+    expect(models["gemma4:26b-a4b-it-q4_K_M"].capabilities.input.image).toBe(true)
+    expect(models["gemma4:26b-a4b-it-q4_K_M"].capabilities.toolcall).toBe(true)
+    expect(models["qwen3:8b"].limit.context).toBe(40960)
+    expect(models["qwen3-coder:30b"].limit.context).toBe(131072)
+    const gemma = yield* Provider.use.getModel(providerID, ModelV2.ID.make("gemma4:26b-a4b-it-q4_K_M"))
+    const coder = yield* Provider.use.getModel(providerID, ModelV2.ID.make("qwen3-coder:30b"))
+    expect(gemma.api.id).toBe("gemma4:26b-a4b-it-q4_K_M")
+    expect(coder.api.id).toBe("qwen3-coder:30b")
+  }),
+  {
+    config: {
+      provider: {
+        "memory-local": {
+          name: "Memory Local (managed)",
+          npm: "@ai-sdk/openai-compatible",
+          env: [],
+          models: {
+            "qwen3:8b": { name: "qwen3:8b", tool_call: true, limit: { context: 40960, output: 8192 } },
+            "qwen3-coder:30b": { name: "qwen3-coder:30b", tool_call: true, limit: { context: 131072, output: 8192 } },
+            "gemma4:26b-a4b-it-q4_K_M": {
+              name: "gemma4:26b-a4b-it-q4_K_M",
+              tool_call: true,
+              reasoning: true,
+              modalities: { input: ["text", "image"], output: ["text"] },
+              limit: { context: 131072, output: 8192 },
+            },
+          },
+          options: { apiKey: "local", baseURL: "http://127.0.0.1:11435/v1" },
+        },
+      },
+    },
+  },
+)
+
+it.instance(
   "filters alpha provider models by default",
   Effect.gen(function* () {
     const providers = yield* list

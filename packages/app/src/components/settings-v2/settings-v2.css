@@ -734,20 +734,38 @@
   padding: 0.75rem 1rem;
 }
 
-.memory-settings-actions button,
-.memory-settings-expander,
-.memory-settings-backups button {
-  border: 1px solid var(--border-base);
-  border-radius: 0.375rem;
-  padding: 0.35rem 0.65rem;
-  max-width: 100%;
+.memory-settings-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
 }
 
-.memory-settings-actions button:disabled,
-.memory-settings-backups button:disabled { opacity: 0.5; }
-.memory-settings-expander { margin: 0.5rem 1rem; }
+.memory-settings-inline [data-component="text-input-v2"] {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.memory-settings-expander {
+  margin: 0.5rem 1rem;
+}
 .memory-settings-subtitle,
-.memory-settings-note { margin: 0.75rem 1rem; overflow-wrap: anywhere; }
-.memory-settings-backups { list-style: none; margin: 0 1rem; padding: 0; }
-.memory-settings-backups li { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; padding: 0.5rem 0; }
-.memory-settings-backups span { overflow-wrap: anywhere; }
+.memory-settings-note {
+  margin: 0.75rem 1rem;
+  overflow-wrap: anywhere;
+}
+.memory-settings-backups {
+  list-style: none;
+  margin: 0 1rem;
+  padding: 0;
+}
+.memory-settings-backups li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+.memory-settings-backups span {
+  overflow-wrap: anywhere;
+}

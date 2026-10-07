@@ -29,7 +29,7 @@ export class InvalidArgumentsError extends Schema.TaggedErrorClass<InvalidArgume
   },
 ) {
   override get message() {
-    return `The ${this.tool} tool was called with invalid arguments: ${this.detail}.\nPlease rewrite the input so it satisfies the expected schema.`
+    return `INVALID_ARGUMENT: The ${this.tool} tool was called with invalid arguments: ${this.detail}.\nPlease rewrite the input so it satisfies the expected schema.`
   }
 }
 
@@ -57,6 +57,13 @@ export interface Def<
   M extends Metadata = Metadata,
 > {
   id: string
+  version?: string
+  category?: string
+  risk?: "READ" | "SAFE_WRITE" | "DESTRUCTIVE" | "EXTERNAL_ACTION"
+  permission?: string
+  availability?: "AVAILABLE" | "DISABLED" | "UNAVAILABLE"
+  timeoutMs?: number
+  cancellable?: boolean
   description: string
   parameters: Parameters
   jsonSchema?: JSONSchema7

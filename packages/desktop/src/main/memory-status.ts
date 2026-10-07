@@ -13,9 +13,17 @@ export class MemoryStatusClient {
   private retryDone?: () => void
 
   constructor(
-    private readonly origin: string,
+    private origin?: string,
     private readonly request: typeof fetch = fetch,
   ) {}
+
+  configure(config: MemoryGateway.Config) {
+    const origin = MemoryGateway.statusOrigin(config)
+    if (origin === this.origin) return
+    this.origin = origin
+    this.publish({ connected: false, status: null, receivedAt: 0 })
+    this.restart()
+  }
 
   subscribe(listener: (value: MemoryStatusSnapshot) => void): () => void {
     this.listeners.add(listener)
@@ -71,7 +79,7 @@ export class MemoryStatusClient {
     this.retryTimer = undefined
     this.retryDone?.()
     this.retryDone = undefined
-    void this.run(this.generation)
+    if (this.active && this.origin) void this.run(this.generation)
   }
 
   private async run(generation: number) {
@@ -110,6 +118,7 @@ export class MemoryStatusClient {
   }
 
   private async fetchStatus(signal: AbortSignal) {
+    if (!this.origin) return
     const response = await this.request(new URL("/memory/status", this.origin), {
       signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
       redirect: "error",
@@ -122,6 +131,7 @@ export class MemoryStatusClient {
   }
 
   private async events(signal: AbortSignal) {
+    if (!this.origin) return
     const response = await this.request(new URL("/memory/events", this.origin), {
       signal,
       redirect: "error",

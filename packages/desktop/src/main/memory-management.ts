@@ -134,7 +134,7 @@ export class MemoryManagementClient {
   }
 }
 
-export function createMemoryManagementClient(request?: typeof fetch) {
-  const origin = MemoryGateway.statusOrigin()
+export function createMemoryManagementClient(request?: typeof fetch, config?: MemoryGateway.Config) {
+  const origin = MemoryGateway.statusOrigin(config)
   return origin ? new MemoryManagementClient(origin, request) : undefined
 }

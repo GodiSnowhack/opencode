@@ -1,6 +1,17 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron"
 import type { ElectronAPI, WslServersEvent } from "./types"
 import type { UpdaterState } from "@opencode-ai/app/updater"
+import { createMemoryServiceSubscriptions } from "./memory-service-subscriptions"
+
+const subscribeMemoryService = createMemoryServiceSubscriptions({
+  listen(callback) {
+    const listener = (_: unknown, snapshot: Parameters<typeof callback>[0]) => callback(snapshot)
+    ipcRenderer.on("memory-service-update", listener)
+    return () => ipcRenderer.removeListener("memory-service-update", listener)
+  },
+  subscribe: () => ipcRenderer.invoke("memory-service-subscribe"),
+  unsubscribe: () => ipcRenderer.invoke("memory-service-unsubscribe"),
+})
 
 const updaterCallbacks = new Set<(state: UpdaterState) => void>()
 let updaterState: UpdaterState | undefined
@@ -12,15 +23,7 @@ const updaterHandler = (_: unknown, state: UpdaterState) => {
 
 const api: ElectronAPI = {
   memoryService: (action) => ipcRenderer.invoke("memory-service", action),
-  memoryServiceSubscribe: async (callback) => {
-    const listener = (_: unknown, snapshot: Parameters<typeof callback>[0]) => callback(snapshot)
-    ipcRenderer.on("memory-service-update", listener)
-    await ipcRenderer.invoke("memory-service-subscribe")
-    return () => {
-      ipcRenderer.removeListener("memory-service-update", listener)
-      void ipcRenderer.invoke("memory-service-unsubscribe")
-    }
-  },
+  memoryServiceSubscribe: subscribeMemoryService,
   memoryManage: (action) => ipcRenderer.invoke("memory-manage", action),
   memoryStatusEnabled: () => ipcRenderer.invoke("memory-status-enabled"),
   memoryEffectiveProjectID: (input) => ipcRenderer.invoke("memory-effective-project-id", input),

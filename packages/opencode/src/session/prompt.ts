@@ -18,6 +18,7 @@ import { Instruction } from "./instruction"
 import { Plugin } from "../plugin"
 import { MAX_STEPS_PROMPT } from "@opencode-ai/core/session/runner/max-steps"
 import { ToolRegistry } from "@/tool/registry"
+import { ToolTurnBudget, configuredMaxToolCalls } from "@/tool/turn-budget"
 import { MCP } from "../mcp"
 import { LSP } from "@/lsp/lsp"
 import { ulid } from "ulid"
@@ -1084,6 +1085,7 @@ const layer = Layer.effect(
         const ctx = yield* InstanceState.context
         let structured: unknown
         let step = 0
+        const memoryToolBudget = new ToolTurnBudget(configuredMaxToolCalls(process.env.OPENCODE_AGENT_MAX_TOOL_CALLS))
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
 
         while (true) {
@@ -1232,6 +1234,7 @@ const layer = Layer.effect(
               bypassAgentCheck,
               messages: msgs,
               promptOps,
+              budget: memoryToolBudget,
             }).pipe(
               Effect.provideService(Plugin.Service, plugin),
               Effect.provideService(Permission.Service, permission),
@@ -1268,6 +1271,10 @@ const layer = Layer.effect(
               ...(mcpInstructions ? [mcpInstructions] : []),
               ...(skills ? [skills] : []),
             ]
+            if (model.providerID === "memory-local" && process.env.OPENCODE_AGENT_TOOLS_ENABLED === "true")
+              system.push(
+                "Use the available read-only tools when needed. Never invent a tool result or claim success before receiving it. Respect denied actions and do not repeat the same denied call. If a result is truncated, state that the data is incomplete.",
+              )
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
             const result = yield* handle.process({

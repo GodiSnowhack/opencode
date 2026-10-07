@@ -9,6 +9,7 @@ import { EditTool } from "./edit"
 import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
+import { ProjectInfoTool, WorkspaceListTool, WorkspaceReadTool } from "./workspace-readonly"
 import { TaskTool } from "./task"
 import { Database } from "@opencode-ai/core/database/database"
 import { TodoWriteTool } from "./todo"
@@ -101,6 +102,9 @@ const layer = Layer.effect(
     const invalid = yield* InvalidTool
     const task = yield* TaskTool
     const read = yield* ReadTool
+    const projectInfo = yield* ProjectInfoTool
+    const workspaceList = yield* WorkspaceListTool
+    const workspaceRead = yield* WorkspaceReadTool
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
     const lsptool = yield* LspTool
@@ -203,6 +207,9 @@ const layer = Layer.effect(
           }
         }
 
+        if (custom.some((item) => ["project.info", "fs.list", "fs.read"].includes(item.id)))
+          throw new Error("reserved_tool_name")
+
         yield* config.get()
         const questionEnabled = ["app", "cli", "desktop"].includes(flags.client) || flags.enableQuestionTool
 
@@ -210,6 +217,9 @@ const layer = Layer.effect(
           invalid: Tool.init(invalid),
           shell: Tool.init(shell),
           read: Tool.init(read),
+          projectInfo: Tool.init(projectInfo),
+          workspaceList: Tool.init(workspaceList),
+          workspaceRead: Tool.init(workspaceRead),
           glob: Tool.init(globtool),
           grep: Tool.init(greptool),
           edit: Tool.init(edit),
@@ -233,6 +243,9 @@ const layer = Layer.effect(
             ...(questionEnabled ? [tool.question] : []),
             tool.shell,
             tool.read,
+            tool.projectInfo,
+            tool.workspaceList,
+            tool.workspaceRead,
             tool.glob,
             tool.grep,
             tool.edit,
@@ -290,6 +303,10 @@ const layer = Layer.effect(
 
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
       const filtered = (yield* all()).filter((tool) => {
+        if (tool.availability && tool.availability !== "AVAILABLE") return false
+        if (input.providerID === "memory-local")
+          return tool.id === "project.info" || tool.id === "fs.list" || tool.id === "fs.read"
+        if (tool.id === "project.info" || tool.id === "fs.list" || tool.id === "fs.read") return false
         if (tool.id === WebSearchTool.id) {
           return webSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })
         }
@@ -322,6 +339,13 @@ const layer = Layer.effect(
               : undefined
           return {
             id: tool.id,
+            version: tool.version,
+            category: tool.category,
+            risk: tool.risk,
+            permission: tool.permission,
+            availability: tool.availability,
+            timeoutMs: tool.timeoutMs,
+            cancellable: tool.cancellable,
             description: [
               output.description,
               tool.id === TaskTool.id ? yield* describeTask(input.agent) : undefined,

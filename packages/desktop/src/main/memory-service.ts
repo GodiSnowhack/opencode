@@ -5,6 +5,20 @@ import { join } from "node:path"
 import { connect } from "node:net"
 import type { MemoryDesktopSettings, MemoryServiceSnapshot } from "@opencode-ai/core/memory/desktop"
 import { defaultMemoryDesktopSettings, parseMemoryDesktopSettings } from "@opencode-ai/core/memory/desktop"
+import { OllamaModelInventory, type OllamaChatModel } from "./ollama-models"
+
+export async function applyAgentToolSettings(
+  before: MemoryDesktopSettings,
+  after: MemoryDesktopSettings,
+  apply: () => Promise<void>,
+) {
+  if (
+    before.agentTools !== after.agentTools ||
+    before.maxToolCalls !== after.maxToolCalls ||
+    before.contextLength !== after.contextLength
+  )
+    await apply()
+}
 
 type SettingsStore = { get(key: string): unknown; set(key: string, value: unknown): void }
 
@@ -20,7 +34,12 @@ export function memoryGatewayDirectory(resourcesPath: string) {
   return join(resourcesPath, "memory-gateway")
 }
 
-export function managedMemoryProvider(content: string | undefined, model: string, port: number) {
+export function managedMemoryProvider(
+  content: string | undefined,
+  models: string | readonly OllamaChatModel[],
+  port: number,
+  contextLength = 32768,
+) {
   const original = content ? (JSON.parse(content) as Record<string, unknown>) : {}
   if (!original || typeof original !== "object" || Array.isArray(original)) throw new Error("invalid_provider_config")
   const providers = original.provider
@@ -28,6 +47,8 @@ export function managedMemoryProvider(content: string | undefined, model: string
     throw new Error("invalid_provider_config")
   const configured = (providers ?? {}) as Record<string, unknown>
   if (configured["memory-local"] !== undefined) throw new Error("managed_provider_conflict")
+  const inventory =
+    typeof models === "string" ? [{ id: models, name: models, tools: true, thinking: false, vision: false }] : models
   return JSON.stringify({
     ...original,
     provider: {
@@ -36,11 +57,79 @@ export function managedMemoryProvider(content: string | undefined, model: string
         name: "Memory Local (managed)",
         npm: "@ai-sdk/openai-compatible",
         env: [],
-        models: { [model]: { name: model, tool_call: true, limit: { context: 32768, output: 8192 } } },
+        models: Object.fromEntries(
+          inventory.map((model) => [
+            model.id,
+            {
+              name: model.name,
+              tool_call: model.tools,
+              reasoning: model.thinking,
+              modalities: { input: model.vision ? ["text", "image"] : ["text"], output: ["text"] },
+              limit: { context: Math.min(contextLength, model.context ?? contextLength), output: 8192 },
+            },
+          ]),
+        ),
         options: { apiKey: "local", baseURL: `http://127.0.0.1:${port}/v1` },
       },
     },
   })
+}
+
+export function managedProviderContext(input: unknown, model: string): number | undefined {
+  if (!input || typeof input !== "object" || !("all" in input) || !Array.isArray(input.all)) return
+  const provider = input.all.find(
+    (item: unknown) => item && typeof item === "object" && "id" in item && item.id === "memory-local",
+  )
+  if (
+    !provider ||
+    typeof provider !== "object" ||
+    !("models" in provider) ||
+    !provider.models ||
+    typeof provider.models !== "object"
+  )
+    return
+  if (Array.isArray(provider.models)) return
+  const selected = Object.entries(provider.models).find(([key]) => key === model)?.[1]
+  if (
+    !selected ||
+    typeof selected !== "object" ||
+    !("limit" in selected) ||
+    !selected.limit ||
+    typeof selected.limit !== "object" ||
+    !("context" in selected.limit)
+  )
+    return
+  if (typeof selected.limit.context === "number") return selected.limit.context
+  return undefined
+}
+
+export function managedProviderModels(input: unknown): Record<string, number> | undefined {
+  if (!input || typeof input !== "object" || !("all" in input) || !Array.isArray(input.all)) return
+  const provider = input.all.find(
+    (item: unknown) => item && typeof item === "object" && "id" in item && item.id === "memory-local",
+  )
+  if (!provider) return {}
+  if (
+    typeof provider !== "object" ||
+    !("models" in provider) ||
+    !provider.models ||
+    typeof provider.models !== "object" ||
+    Array.isArray(provider.models)
+  )
+    return
+  return Object.fromEntries(
+    Object.keys(provider.models).flatMap((id) => {
+      const context = managedProviderContext(input, id)
+      return context === undefined ? [] : [[id, context]]
+    }),
+  )
+}
+
+export function memoryWorkerModelEnv(settings: MemoryDesktopSettings) {
+  return {
+    MEMORY_LLM_MODEL: settings.model,
+    MEMORY_CHAT_CONTEXT_LENGTH: String(settings.contextLength),
+  }
 }
 
 export class MemoryService {
@@ -54,6 +143,7 @@ export class MemoryService {
   private retryTimer: ReturnType<typeof setTimeout> | undefined
   private readonly listeners = new Set<(snapshot: MemoryServiceSnapshot) => void>()
   private ollama: MemoryServiceSnapshot["ollama"] = { connected: false, models: [] }
+  private readonly inventory = new OllamaModelInventory()
 
   constructor(
     private readonly options: {
@@ -96,18 +186,37 @@ export class MemoryService {
 
   async detectOllama() {
     try {
-      const response = await (this.options.request ?? fetch)("http://127.0.0.1:11434/api/tags", {
+      const discovered = await this.inventory.refresh(this.options.request ?? fetch)
+      const running = await (this.options.request ?? fetch)("http://127.0.0.1:11434/api/ps", {
         signal: AbortSignal.timeout(3000),
         redirect: "error",
         cache: "no-store",
       })
-      if (!response.ok) throw new Error("ollama_unavailable")
-      const data = (await response.json()) as { models?: { name?: string }[] }
-      this.ollama = { connected: true, models: (data.models ?? []).flatMap((item) => (item.name ? [item.name] : [])) }
+        .then((result) =>
+          result.ok ? (result.json() as Promise<{ models?: { name?: string; context_length?: number }[] }>) : undefined,
+        )
+        .catch(() => undefined)
+      const effective = running?.models?.find((item) => item.name === this.settings.model)?.context_length
+      this.ollama = {
+        connected: true,
+        models: discovered.names,
+        chatModels: discovered.chatModels,
+        effectiveContextLength:
+          typeof effective === "number" && Number.isInteger(effective) && effective > 0 ? effective : undefined,
+        modelContextLength: discovered.chatModels.find((item) => item.id === this.settings.model)?.context,
+      }
     } catch {
-      this.ollama = { connected: false, models: [] }
+      this.ollama = { ...this.ollama, connected: false, chatModels: this.inventory.chatModels }
     }
-    if (this.child && this.state === "degraded" && this.reason === "ollama_unavailable" && this.ollama.connected)
+    const memoryModelMissing =
+      this.ollama.connected && !this.inventory.chatModels.some((model) => model.id === this.settings.model)
+    if (this.child && memoryModelMissing) this.publish("degraded", "memory_model_not_installed")
+    else if (
+      this.child &&
+      this.state === "degraded" &&
+      (this.reason === "ollama_unavailable" || this.reason === "memory_model_not_installed") &&
+      this.ollama.connected
+    )
       this.publish("running")
     else if (this.child && this.state === "running" && !this.ollama.connected)
       this.publish("degraded", "ollama_unavailable")
@@ -117,18 +226,35 @@ export class MemoryService {
 
   async update(value: unknown) {
     const next = parseMemoryDesktopSettings(value)
-    if (this.ollama.connected && !this.ollama.models.includes(next.model)) throw new Error("model_not_installed")
+    if (this.state === "external" && next.contextLength !== this.settings.contextLength)
+      throw new Error("managed_context_requires_owned_gateway")
+    if (this.ollama.connected && !this.inventory.chatModels.some((model) => model.id === next.model))
+      throw new Error("model_not_installed")
     if (this.ollama.connected && next.embeddings && !this.ollama.models.includes(next.embeddingModel))
       throw new Error("embedding_model_not_installed")
     const previous = this.settings
+    const previousOllama = this.ollama
     this.settings = next
+    if (previous.model !== next.model)
+      this.ollama = {
+        ...this.ollama,
+        modelContextLength: this.inventory.chatModels.find((item) => item.id === next.model)?.context,
+      }
+    if (previous.model !== next.model || previous.contextLength !== next.contextLength)
+      this.ollama = { ...this.ollama, effectiveContextLength: undefined }
     this.options.store.set("settings", next)
     this.publish(this.state, this.reason)
     try {
       await this.stop()
-      if (next.enabled && next.autoStart) await this.start()
+      if (next.enabled && next.autoStart) {
+        await this.start()
+        if (next.contextLength !== previous.contextLength && this.state === "external")
+          throw new Error("managed_context_requires_owned_gateway")
+        if (this.state === "failed") throw new Error(this.reason ?? "gateway_start_failed")
+      }
     } catch (error) {
       this.settings = previous
+      this.ollama = previousOllama
       this.options.store.set("settings", previous)
       await this.stop()
       if (previous.enabled && previous.autoStart) await this.start().catch(() => undefined)
@@ -214,7 +340,7 @@ export class MemoryService {
         MEMORY_BACKUP_DIRECTORY: join(this.snapshot.dataDirectory, "backups"),
         MEMORY_LOG_PATH: join(this.snapshot.dataDirectory, "logs", "memory.jsonl"),
         MEMORY_SUPPORT_DIRECTORY: join(this.snapshot.dataDirectory, "support"),
-        MEMORY_LLM_MODEL: this.settings.model,
+        ...memoryWorkerModelEnv(this.settings),
         MEMORY_ENABLED: "true",
         MEMORY_INJECTION_ENABLED: String(this.settings.injection),
         MEMORY_MAX_RETRIEVAL_TOKENS: String(this.settings.retrievalTokens),

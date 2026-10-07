@@ -54,6 +54,19 @@ export async function startBackgroundCli(logger: Logger, shellStateHome?: string
     url,
     username: "opencode",
     password,
+    restart: async () => {
+      if (found) throw new Error("managed_v2_service_not_owned")
+      const current = serviceUrl(await run(binary, ["service", "status"], logger, { stateHome: daemonStateHome }))
+      if (current !== url) throw new Error("managed_v2_service_changed")
+      await run(binary, ["service", "restart"], logger, { stateHome: daemonStateHome })
+      const nextURL = serviceUrl(await run(binary, ["service", "status"], logger, { stateHome: daemonStateHome }))
+      if (!nextURL) throw new Error("managed_v2_service_restart_failed")
+      const nextPassword = await run(binary, ["service", "get", "password"], logger, {
+        redact: true,
+        stateHome: daemonStateHome,
+      })
+      return { url: nextURL, password: nextPassword }
+    },
   }
 }
 
