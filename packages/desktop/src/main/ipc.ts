@@ -31,6 +31,8 @@ import type { MemoryManagementAction, MemoryManagementResponse } from "@opencode
 import type { MemoryService } from "./memory-service"
 import { applyAgentToolSettings } from "./memory-service"
 import type { MemoryServiceAction } from "@opencode-ai/core/memory/desktop"
+import type { UsageRange } from "@opencode-ai/core/usage/types"
+import type { createDesktopUsageStore } from "./usage-store"
 
 const pickerFilters = (ext?: string[]) => {
   if (!ext || ext.length === 0) return undefined
@@ -40,6 +42,7 @@ const pickerFilters = (ext?: string[]) => {
 const pickedFiles = createPickedFileAuthorizations()
 
 type Deps = {
+  usage?: ReturnType<typeof createDesktopUsageStore>
   memoryService: MemoryService
   killSidecar: () => Promise<void> | void
   relaunch: () => void
@@ -64,6 +67,14 @@ type Deps = {
 }
 
 export function registerIpcHandlers(deps: Deps) {
+  const usageSender = (event: IpcMainInvokeEvent) => {
+    if (event.senderFrame !== event.sender.mainFrame || !BrowserWindow.fromWebContents(event.sender))
+      throw new Error("invalid_sender")
+    if (!deps.usage) throw new Error("usage_unavailable")
+    return deps.usage
+  }
+  ipcMain.handle("usage-get", (event, range: UsageRange) => usageSender(event).get(range))
+  ipcMain.handle("usage-clear", (event, confirm: boolean) => usageSender(event).clear(confirm))
   ipcMain.handle("memory-service", async (event, action: MemoryServiceAction) => {
     if (!action || typeof action.kind !== "string") throw new Error("invalid_action")
     switch (action.kind) {

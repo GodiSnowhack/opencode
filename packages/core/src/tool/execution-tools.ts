@@ -46,11 +46,13 @@ export const executionDescription = (kind: ExecutionKind) =>
     }[kind]
   } ${EXECUTION_GUIDANCE}`
 export const executionTimeout = (name: string) =>
-  name.startsWith("git_") || name.startsWith("git.")
-    ? 180_000
-    : /^(shell[._]exec|test[._]run)$/.test(name)
-      ? 310_000
-      : 10_000
+  name === "http.request" || name === "http_request"
+    ? 35_000
+    : name.startsWith("git_") || name.startsWith("git.")
+      ? 180_000
+      : /^(shell[._]exec|test[._]run)$/.test(name)
+        ? 310_000
+        : 10_000
 
 export class Runtime extends Context.Service<Runtime, Effect.Success<ReturnType<typeof ManagedExecution.make>>>()(
   "@opencode/ManagedExecutionV2",

@@ -6,6 +6,7 @@ import type { MemoryStatusSnapshot } from "@opencode-ai/core/memory/status"
 import type { Identity } from "@opencode-ai/core/memory/gateway"
 import type { MemoryManagementAction, MemoryManagementResponse } from "@opencode-ai/core/memory/management-types"
 import type { MemoryServiceAction, MemoryServiceSnapshot } from "@opencode-ai/core/memory/desktop"
+import type { UsagePlatform } from "@opencode-ai/core/usage/types"
 export type {
   WslDistroProbe,
   WslInstalledDistro,
@@ -47,6 +48,7 @@ export type FatalRendererError = {
 }
 
 export type ElectronAPI = {
+  usage: UsagePlatform
   memoryService: (action: MemoryServiceAction) => Promise<unknown>
   memoryServiceSubscribe: (callback: (snapshot: MemoryServiceSnapshot) => void) => Promise<() => void>
   memoryManage: (action: MemoryManagementAction) => Promise<MemoryManagementResponse>

@@ -1,5 +1,28 @@
 import { expect, test } from "bun:test"
-import { workspaceToolAction, workspaceToolStatus, gitToolKind, gitToolKinds } from "./workspace-tool"
+import {
+  workspaceToolAction,
+  workspaceToolStatus,
+  gitToolKind,
+  gitToolKinds,
+  isHttpTool,
+  httpToolInfo,
+} from "./workspace-tool"
+
+test("HTTP V1/V2 reuse safe bounded cards and structured errors", () => {
+  expect(isHttpTool("http.request")).toBe(true)
+  expect(isHttpTool("http_request")).toBe(true)
+  expect(isHttpTool("plugin.http")).toBe(false)
+  const input = { method: "POST", url: "https://user:password@example.test/api/items?token=secret" }
+  const metadata = { status: 201, durationMs: 142 }
+  expect(httpToolInfo(input, metadata)).toEqual({ title: "HTTP POST /api/items", subtitle: "201 · 142 ms" })
+  expect(httpToolInfo({ url: "invalid secret" }, {}, '{"ok":false,"errorCode":"TIMEOUT"}')).toEqual({
+    title: "HTTP GET",
+    subtitle: "TIMEOUT",
+  })
+  expect(httpToolInfo(input, {}, JSON.stringify(metadata))).toEqual(httpToolInfo(input, metadata))
+  expect(workspaceToolStatus("completed", '{"ok":false,"errorCode":"PERMISSION_DENIED"}')).toBe("error")
+  expect(httpToolInfo({ url: `https://example.test/${"x".repeat(4096)}` }, {}).title.length).toBeLessThan(280)
+})
 
 test("managed V1 and V2 tools reuse native localized actions", () => {
   for (const [kind, action] of [

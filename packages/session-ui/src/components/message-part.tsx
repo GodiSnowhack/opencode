@@ -36,7 +36,14 @@ import { useFileComponent } from "@opencode-ai/ui/context/file"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { type UiI18n, useI18n } from "@opencode-ai/ui/context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
-import { workspaceToolAction, workspaceToolStatus, gitToolKind, gitToolKinds } from "./workspace-tool"
+import {
+  workspaceToolAction,
+  workspaceToolStatus,
+  gitToolKind,
+  gitToolKinds,
+  isHttpTool,
+  httpToolInfo,
+} from "./workspace-tool"
 import { Accordion } from "@opencode-ai/ui/accordion"
 import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
@@ -473,6 +480,7 @@ export function getToolInfo(
   metadata: Record<string, unknown> | undefined = {},
 ): ToolInfo {
   const i18n = useI18n()
+  if (isHttpTool(tool)) return { icon: "window-cursor", ...httpToolInfo(input, metadata ?? {}) }
   const gitKind = gitToolKind(tool)
   if (gitKind)
     return {
@@ -1509,7 +1517,10 @@ export const ToolRegistry = {
 }
 
 const WorkspaceToolCard: ToolComponent = (props) => {
-  const info = () => getToolInfo(props.tool, props.input, props.metadata)
+  const info = () =>
+    isHttpTool(props.tool)
+      ? { icon: "window-cursor" as const, ...httpToolInfo(props.input, props.metadata, props.output) }
+      : getToolInfo(props.tool, props.input, props.metadata)
   return (
     <BasicTool
       {...props}
@@ -1528,6 +1539,8 @@ const WorkspaceToolCard: ToolComponent = (props) => {
 }
 
 for (const name of [
+  "http.request",
+  "http_request",
   "project.info",
   "project_info",
   "fs.list",

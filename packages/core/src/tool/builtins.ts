@@ -17,6 +17,7 @@ import { WriteTool } from "./write"
 import { ManagedWorkspaceTools } from "./managed-workspace"
 import { ManagedExecutionTools } from "./execution-tools"
 import { ManagedGitTools } from "./git-tools"
+import { ManagedHttpTools } from "./http-tools"
 
 /**
  * Composes only the shipped Location-scoped built-in tool transforms.
@@ -38,6 +39,7 @@ export const node = makeLocationNode({
     ManagedWorkspaceTools.node,
     ManagedExecutionTools.node,
     ManagedGitTools.node,
+    ManagedHttpTools.node,
     ApplyPatchTool.node,
     BashTool.node,
     EditTool.node,

@@ -6,6 +6,7 @@ import { connect } from "node:net"
 import type { MemoryDesktopSettings, MemoryServiceSnapshot } from "@opencode-ai/core/memory/desktop"
 import { defaultMemoryDesktopSettings, parseMemoryDesktopSettings } from "@opencode-ai/core/memory/desktop"
 import { OllamaModelInventory, type OllamaChatModel } from "./ollama-models"
+import { createUsageReceiver } from "./usage-pipe"
 
 export async function applyAgentToolSettings(
   before: MemoryDesktopSettings,
@@ -153,6 +154,7 @@ export class MemoryService {
       executable: string
       request?: typeof fetch
       onStderr?: (line: string) => void
+      onUsage?: (event: unknown) => void
     },
   ) {
     try {
@@ -329,11 +331,12 @@ export class MemoryService {
     const child = spawn(this.options.executable, [join(directory, "gateway.mjs")], {
       cwd: directory,
       windowsHide: true,
-      stdio: ["ignore", "ignore", "pipe"],
+      stdio: ["ignore", "ignore", "pipe", "pipe"],
       env: {
         ...process.env,
         ELECTRON_RUN_AS_NODE: "1",
         MEMORY_DESKTOP_MANAGED: "true",
+        OPENCODE_USAGE_PIPE: "1",
         MEMORY_HOST: "127.0.0.1",
         MEMORY_PORT: String(this.settings.port),
         MEMORY_DATABASE_PATH: join(this.snapshot.dataDirectory, "memory.db"),
@@ -351,6 +354,9 @@ export class MemoryService {
       },
     })
     this.child = child
+    const usagePipe = child.stdio[3]
+    if (usagePipe && "on" in usagePipe)
+      usagePipe.on("data", createUsageReceiver(this.options.onUsage ?? (() => undefined)))
     if (this.options.onStderr) child.stderr?.on("data", (chunk: Buffer) => this.options.onStderr?.(chunk.toString()))
     child.once("error", () => this.handleExit(child))
     child.once("exit", () => this.handleExit(child))

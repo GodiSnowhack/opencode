@@ -11,6 +11,8 @@ import { SettingsModelsV2 } from "./models"
 import "./settings-v2.css"
 import { SettingsServersV2 } from "./servers"
 import { SettingsMemoryV2 } from "./memory"
+import { SettingsUsageV2 } from "./usage"
+import { Show } from "solid-js"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useLayout } from "@/context/layout"
 import { useTabs } from "@/context/tabs"
@@ -66,6 +68,12 @@ export const DialogSettings: Component<{
                       <Icon name="keyboard" />
                       {language.t("settings.tab.shortcuts")}
                     </TabsV2.Trigger>
+                    <Show when={platform.usage}>
+                      <TabsV2.Trigger value="usage">
+                        <Icon name="sliders" />
+                        {language.t("usage.title")}
+                      </TabsV2.Trigger>
+                    </Show>
                   </div>
                 </div>
 
@@ -101,6 +109,11 @@ export const DialogSettings: Component<{
         <TabsV2.Content value="general" class="settings-v2-panel">
           <SettingsGeneralV2 sessionID={props.sessionID} />
         </TabsV2.Content>
+        <Show when={platform.usage}>
+          <TabsV2.Content value="usage" class="settings-v2-panel">
+            <SettingsUsageV2 />
+          </TabsV2.Content>
+        </Show>
         <TabsV2.Content value="shortcuts" class="settings-v2-panel">
           <SettingsKeybinds v2 />
         </TabsV2.Content>

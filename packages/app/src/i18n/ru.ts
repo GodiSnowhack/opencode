@@ -1,6 +1,8 @@
 import { MEMORY_ENGLISH } from "./memory-fallback"
+import { USAGE_RUSSIAN } from "./usage-fallback"
 export const dict = {
   ...MEMORY_ENGLISH,
+  ...USAGE_RUSSIAN,
   "memory.settings.title": "Память",
   "memory.settings.enabled": "Включить память",
   "memory.settings.injection": "Автоматически добавлять контекст памяти",

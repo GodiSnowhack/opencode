@@ -1,5 +1,7 @@
+import { USAGE_ENGLISH } from "./usage-fallback"
 // Non-Russian locales inherit this canonical copy until a reviewed translation replaces individual keys.
 export const MEMORY_ENGLISH = {
+  ...USAGE_ENGLISH,
   "memory.settings.title": "Memory",
   "memory.settings.enabled": "Enable Memory",
   "memory.settings.injection": "Automatic context injection",

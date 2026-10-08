@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import { createDesktopUsageStore } from "./usage-store"
 import { existsSync, mkdirSync } from "node:fs"
 import * as http from "node:http"
 import { createServer } from "node:net"
@@ -228,11 +229,23 @@ const main = Effect.gen(function* () {
   }
 
   const shellEnv = preferAppEnv(app.getPath("userData"))
+  const usage = (() => {
+    try {
+      return createDesktopUsageStore(join(app.getPath("userData"), "usage.sqlite"))
+    } catch {
+      console.error("Local usage statistics unavailable")
+      return undefined
+    }
+  })()
+  app.once("will-quit", () => usage?.close())
   const memoryService = new MemoryService({
     store: getStore("opencode.memory"),
     userData: app.getPath("userData"),
     resources: memoryGatewayResources(app.isPackaged, app.getAppPath(), process.resourcesPath),
     executable: process.execPath,
+    onUsage: (event) => {
+      usage?.bestEffort(event)
+    },
   })
   const initialOllamaDetection = memoryService.detectOllama()
   const configureMemoryEnv = () => {
@@ -417,6 +430,7 @@ const main = Effect.gen(function* () {
   }
   registerIpcHandlers({
     memoryService,
+    usage,
     killSidecar: () => killSidecar(),
     relaunch,
     applyMemorySettings,

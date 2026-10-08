@@ -22,6 +22,10 @@ const updaterHandler = (_: unknown, state: UpdaterState) => {
 }
 
 const api: ElectronAPI = {
+  usage: {
+    get: (range) => ipcRenderer.invoke("usage-get", range),
+    clear: (confirm) => ipcRenderer.invoke("usage-clear", confirm),
+  },
   memoryService: (action) => ipcRenderer.invoke("memory-service", action),
   memoryServiceSubscribe: subscribeMemoryService,
   memoryManage: (action) => ipcRenderer.invoke("memory-manage", action),

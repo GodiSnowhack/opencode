@@ -119,3 +119,115 @@ Use selected-path `git.diff` and pass its session-bound `reviewId` to stage/rest
 Automatic workflow ends at local commit and report. Never push merely to finish a task. Remotes must already exist; explicit branch mapping is required. Managed commands do not run hooks/signing, do not expose credential URLs, and do not modify Git configuration. Approved project scripts/custom filters still have host-user authority; this is not an OS sandbox. Ownership/reviews are bounded and process-local; mixed changes use whole-file approval, without hunk staging.
 
 Actual checks and limitations: `PHASE9D_SELF_ACCEPTANCE.md`.
+
+# Phase 9F HTTP / API tools
+
+Managed V1 exposes `http.request`; canonical V2 exposes `http_request`. Both use
+the same `ManagedHttp` policy and `http-network` transport. Native webfetch and
+other providers remain unchanged. These tools are excluded from ordinary provider
+catalogs. Tools OFF removes executable schemas at the existing runner gate and
+also rejects stale HTTP invocations inside the shared runtime.
+
+## API and limits
+
+Arguments: `method` (GET default, HEAD, POST, PUT, PATCH, DELETE), `url`, optional
+string maps `query`/`headers`, `body`, `contentType`, `timeoutMs`, and
+`credentialProfile`. JSON values serialize as JSON; a JSON string remains a
+string. Text and URL-encoded string maps are supported; multipart/uploads are not.
+GET/HEAD cannot have a body. Inline credential fields and unsafe headers are denied.
+
+Results include `ok`, requestID, method, status/statusText, filtered headers,
+body, contentType, durationMs, finalUrl, redirectCount, truncated, bytesReceived
+and optional errorCode. HTTP 400/401/403/404/500 remain HTTP exchanges with their
+status, rather than transport errors. JSON retains structure; HTML/XML/plain text
+remain inert text. Binary responses have metadata and UNSUPPORTED_CONTENT.
+
+| Limit                           | Value                                          |
+| ------------------------------- | ---------------------------------------------- |
+| URL / model-supplied headers    | 4096 characters / 24 headers                   |
+| Header name / supplied value    | 64 / 2048 characters                           |
+| Request body / response preview | 32 KiB / 8 KiB                                 |
+| Response headers exposed        | 24, 1024 characters each, 4 KiB total          |
+| Redirects                       | 3, validated and confirmed independently       |
+| Network timeout                 | 10 seconds default, maximum 30 seconds         |
+| Per session/turn                | 8 requests, 30 seconds cumulative network time |
+| Concurrent requests             | 2 per scoped runtime                           |
+| Retained turn budgets           | 256; completed old turns evicted               |
+
+DNS failures and transport failures consume network time. Permission waiting is
+excluded from the network counter, while the existing outer tool deadline is
+35 seconds and includes confirmation waiting. Generic agent call/output/time
+budgets still apply. Response streams are destroyed on truncation/cancellation.
+OS DNS lookup cannot itself be cancelled, but the tool stops awaiting it and
+never connects after the deadline. There are no automatic retries, including
+writes and HTTP429; Retry-After remains visible in the bounded result.
+
+## Permissions and endpoint safety
+
+Every request requires the existing ASK/once flow, including public reads.
+Writes, authentication and internal endpoints cannot inherit broad/saved allow
+or Desktop auto-accept. Configured deny still wins. Confirmation shows method,
+origin/path, risk code, authentication presence, payload size and content type;
+never payload or secret. Internal endpoints need NETWORK_INTERNAL approval.
+
+Only normalized HTTP/HTTPS URLs are accepted. Embedded credentials and ambiguous
+forms are rejected. All DNS answers are classified; metadata, link-local,
+unspecified/broadcast/multicast, mapped/translated IPv6 and protected system
+ports fail closed. RFC1918, loopback and IPv6 ULA remain available with approval.
+Known database/admin/Ollama/Gateway ports and configured service ports are blocked.
+
+Transport connects to a literal pinned IP, preserves Host/SNI and uses no pooled
+agent. Node validates the actual peer; Bun's compatibility socket lacks peer
+metadata, so literal addressing and refusal of ambient proxies provide pinning.
+HTTP_PROXY/HTTPS_PROXY/ALL_PROXY, including lowercase names, cause
+PROXY_UNSUPPORTED. No implicit proxy bypass or user configuration changes occur.
+Public pinned connections cannot redirect into an internal address, even when
+the original DNS set mixes public/private answers. HTTPS downgrade is blocked.
+Every redirect is resolved, classified and confirmed again. TLS verification
+is always enabled; use an operator-trusted certificate setup for local HTTPS.
+
+## Credentials and provenance
+
+No credential vault/UI/database is introduced. The trusted process may set
+`OPENCODE_HTTP_CREDENTIAL_PROFILES` to a JSON registry with exact origin bindings
+and **environment variable names**, not token values:
+
+```json
+{
+  "local-test-api": {
+    "origin": "http://127.0.0.1:8000",
+    "type": "bearer",
+    "env": "LOCAL_API_TOKEN"
+  }
+}
+```
+
+Other trusted profile types: `apiKey` with header/env; `basic` with
+usernameEnv/passwordEnv. Values are process-only, bounded, and redacted from
+results/audit, including escaped JSON echoes and Basic encoding. Missing/wrong
+origin profiles fail AUTH_REQUIRED. Headers and status/type metadata are redacted
+before truncation. Authenticated oversized response bodies are omitted to avoid
+exposing a partial secret at the preview boundary. Credentials never follow an origin change.
+No durable plaintext credential persistence or automatic credential discovery.
+
+Audit records contain request ID, tool, method, safe origin/path, risk,
+permission, status, duration, byte count and error; no request/response bodies.
+HTTP results retain tool-role provenance. They are not user confirmation or
+sources of user preferences. Inference Usage is recorded only by the unchanged
+Gateway observer: HTTP bytes are not model tokens; subsequent model inference
+is counted normally. Worker model selection remains independent.
+
+Errors: INVALID_URL, INVALID_ARGUMENT, BLOCKED_ADDRESS, BLOCKED_REDIRECT,
+PERMISSION_DENIED, AUTH_REQUIRED, UNSAFE_HEADER, DNS_FAILURE, TLS_ERROR,
+CONNECTION_REFUSED, TIMEOUT, CANCELLED, REQUEST_TOO_LARGE, RESPONSE_TOO_LARGE,
+TOO_MANY_REDIRECTS, UNSUPPORTED_CONTENT, INVALID_JSON, NETWORK_ERROR,
+PROXY_UNSUPPORTED, NETWORK_BUDGET_EXCEEDED, TOOLS_DISABLED.
+
+Phase9C blocks direct curl/wget/PowerShell HTTP/encoded commands/inline Node or
+Python networking. Approved project scripts retain host-user authority; this
+policy is **not OS network isolation**. Likewise untrusted API instructions may
+influence a model: tool-role separation and real permissions limit execution,
+but do not guarantee semantic immunity to all prompt injection.
+
+Acceptance, commands, source files and remaining boundaries:
+`PHASE9F_SELF_ACCEPTANCE.md`.
